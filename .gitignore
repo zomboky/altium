@@ -1,0 +1,9 @@
+# Rust
+target/
+
+# Front
+web/node_modules/
+web/dist/
+
+# Claude Code (local)
+.claude/settings.local.json
