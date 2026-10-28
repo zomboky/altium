@@ -1,0 +1,8 @@
+[package]
+name = "altium-core"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]

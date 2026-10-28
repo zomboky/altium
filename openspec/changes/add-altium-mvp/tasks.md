@@ -2,10 +2,10 @@
 
 ## 1. Mise en place
 
-- [ ] 1.1 Installer la toolchain Rust stable (rustup) et vérifier que `cargo --version` répond. Vérifier aussi `node` ≥ 20 pour le build du front
-- [ ] 1.2 Compléter le `.gitignore` (target/, web/node_modules/, web/dist/) et créer le workspace Cargo avec les crates `altium-core`, `altium-mcp`, `altium-server` et `altium-cli` (D1). Vérifier que `cargo build --workspace` passe
-- [ ] 1.3 Créer `web/` (Svelte 5 + Vite + TS) et vérifier que `npm run build` produit `web/dist/index.html`
-- [ ] 1.4 Brancher `rust-embed` dans `altium-server` sur `web/dist` (avec un placeholder si le build front est absent), ajouter un `justfile` ou `Makefile` (`build`, `test`, `dev`) et vérifier que `make build` produit un binaire `altium` unique
+- [x] 1.1 Installer la toolchain Rust stable (rustup) et vérifier que `cargo --version` répond. Vérifier aussi `node` ≥ 20 pour le build du front
+- [x] 1.2 Compléter le `.gitignore` (target/, web/node_modules/, web/dist/) et créer le workspace Cargo avec les crates `altium-core`, `altium-mcp`, `altium-server` et `altium-cli` (D1). Vérifier que `cargo build --workspace` passe
+- [x] 1.3 Créer `web/` (Svelte 5 + Vite + TS) et vérifier que `npm run build` produit `web/dist/index.html`
+- [x] 1.4 Brancher `rust-embed` dans `altium-server` sur `web/dist` (avec un placeholder si le build front est absent), ajouter un `justfile` ou `Makefile` (`build`, `test`, `dev`) et vérifier que `make build` produit un binaire `altium` unique
 
 ## 2. Store `.altium/` (altium-core)
 

@@ -1,0 +1,16 @@
+[package]
+name = "altium-cli"
+version.workspace = true
+edition.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "altium"
+path = "src/main.rs"
+
+[dependencies]
+altium-core.workspace = true
+altium-mcp.workspace = true
+altium-server.workspace = true
+clap = { version = "4", features = ["derive"] }

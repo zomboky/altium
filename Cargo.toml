@@ -1,0 +1,19 @@
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+repository = "https://github.com/zomboky/altium"
+rust-version = "1.85"
+
+[workspace.dependencies]
+altium-core = { path = "crates/altium-core" }
+altium-mcp = { path = "crates/altium-mcp" }
+altium-server = { path = "crates/altium-server" }
+
+[profile.release]
+lto = "thin"
+codegen-units = 1
+strip = true
