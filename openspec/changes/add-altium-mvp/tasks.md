@@ -9,12 +9,12 @@
 
 ## 2. Store `.altium/` (altium-core)
 
-- [ ] 2.1 Implémenter les modèles `Project`, `Status`, `Task` et `MemoryNode`, ainsi que leur sérialisation stable : `tasks.jsonl` trié, clés triées, défauts omis, frontmatter YAML pour la mémoire (D3). Vérifier avec des tests aller-retour et un test « une modification = une ligne de diff »
-- [ ] 2.2 Implémenter l'écriture atomique (tmp + fsync + rename) et le verrou `runtime/lock` (D4). Vérifier avec un test qui tue un processus fils en pleine écriture et un test de 2 écrivains concurrents sans perte
-- [ ] 2.3 Implémenter le patch de task par champ avec détection de conflit (valeur de base ≠ valeur courante → conflit). Vérifier avec des tests unitaires : champs différents → fusion, même champ → conflit
-- [ ] 2.4 Implémenter la version de schéma, la migration avec sauvegarde, et le mode lecture seule face à un schéma plus récent. Vérifier avec un test qui migre un faux schéma v0 et un test « schéma v99 → écritures refusées »
-- [ ] 2.5 Implémenter les erreurs localisées (fichier + ligne) sur les fichiers invalides, sans jamais écraser le fichier. Vérifier avec un test sur un `tasks.jsonl` corrompu : les autres sections restent chargeables
-- [ ] 2.6 Documenter le format dans `docs/format.md` et produire un JSON Schema des tasks. Vérifier que les fixtures de test sont validées par ce schéma
+- [x] 2.1 Implémenter les modèles `Project`, `Status`, `Task` et `MemoryNode`, ainsi que leur sérialisation stable : `tasks.jsonl` trié, clés triées, défauts omis, frontmatter YAML pour la mémoire (D3). Vérifier avec des tests aller-retour et un test « une modification = une ligne de diff »
+- [x] 2.2 Implémenter l'écriture atomique (tmp + fsync + rename) et le verrou `runtime/lock` (D4). Vérifier avec un test qui tue un processus fils en pleine écriture et un test de 2 écrivains concurrents sans perte
+- [x] 2.3 Implémenter le patch de task par champ avec détection de conflit (valeur de base ≠ valeur courante → conflit). Vérifier avec des tests unitaires : champs différents → fusion, même champ → conflit
+- [x] 2.4 Implémenter la version de schéma, la migration avec sauvegarde, et le mode lecture seule face à un schéma plus récent. Vérifier avec un test qui migre un faux schéma v0 et un test « schéma v99 → écritures refusées »
+- [x] 2.5 Implémenter les erreurs localisées (fichier + ligne) sur les fichiers invalides, sans jamais écraser le fichier. Vérifier avec un test sur un `tasks.jsonl` corrompu : les autres sections restent chargeables
+- [x] 2.6 Documenter le format dans `docs/format.md` et produire un JSON Schema des tasks. Vérifier que les fixtures de test sont validées par ce schéma
 
 ## 3. Registre et `altium init`
 

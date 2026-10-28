@@ -6,7 +6,7 @@ members = ["crates/*"]
 version = "0.1.0"
 edition = "2024"
 repository = "https://github.com/zomboky/altium"
-rust-version = "1.85"
+rust-version = "1.89"
 
 [workspace.dependencies]
 altium-core = { path = "crates/altium-core" }

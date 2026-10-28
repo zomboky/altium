@@ -52,7 +52,7 @@ web/              Svelte 5 + Vite + TypeScript, build statique embarqué (rust-e
 .altium/
   project.toml         id (ULID), nom, schema = 1, config projet (budget, phases, notifs, memory.lang)
   status.json          résumé, phase, updated_at, updated_by
-  tasks.jsonl          UNE task par ligne, triées par id, clés triées, défauts omis
+  tasks.jsonl          UNE task par ligne, triées par id, ordre des clés fixe (id en premier), défauts omis
   memory/<slug>.md     frontmatter YAML (kind, title, desc, tags, pinned, links[]) + corps Markdown
   .gitignore           → runtime/
   runtime/             (non versionné)

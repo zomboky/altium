@@ -1,0 +1,5 @@
+{"id":"T-1","title":"Mettre en place le workspace","st":"done","pri":"P1","tags":["setup"],"rev":3,"ca":"2026-10-28T09:00:00Z","ua":"2026-10-28T12:00:00Z","da":"2026-10-28T12:00:00Z"}
+{"id":"T-2","title":"Store .altium/","st":"doing","pri":"P0","due":"2026-11-02T18:00","tags":["core","store"],"desc":"Écritures atomiques\net verrou.","rev":5,"ca":"2026-10-28T09:05:00Z","ua":"2026-10-28T14:30:00Z"}
+{"id":"T-3","title":"Écritures atomiques","parent":"T-2","pos":1,"rev":1,"ca":"2026-10-28T09:06:00Z","ua":"2026-10-28T09:06:00Z"}
+{"id":"T-4","title":"Intégrer les notifications","st":"blocked","pri":"P3","due":"2026-11-15","why":"mako absent de la machine de dev","rev":2,"ca":"2026-10-28T10:00:00Z","ua":"2026-10-28T11:00:00Z"}
+{"id":"T-10","title":"Ancienne piste","st":"cancelled","note":"Remplacée par T-2.","rev":2,"ca":"2026-10-27T08:00:00Z","ua":"2026-10-28T08:00:00Z"}
