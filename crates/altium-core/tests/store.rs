@@ -316,3 +316,16 @@ fn node(id: &str) -> MemoryNode {
         body: "Body.\n".into(),
     }
 }
+
+#[test]
+fn find_root_walks_up_to_the_project() {
+    let root = tempfile::tempdir().unwrap();
+    let project = root.path().join("foo");
+    let nested = project.join("src/lib");
+    fs::create_dir_all(&nested).unwrap();
+    Store::init(&project, "foo").unwrap();
+
+    assert_eq!(altium_core::store::find_root(&nested), Some(project.clone()));
+    assert_eq!(altium_core::store::find_root(&project), Some(project));
+    assert_eq!(altium_core::store::find_root(&root.path().join("elsewhere")), None);
+}

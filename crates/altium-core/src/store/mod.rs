@@ -5,8 +5,8 @@
 //! sessions, hooks and the dashboard can write at the same time without losing
 //! changes.
 
-mod atomic;
-mod lock;
+pub(crate) mod atomic;
+pub(crate) mod lock;
 mod migrate;
 
 pub use migrate::{MigrationStep, Migrator};
@@ -281,6 +281,15 @@ impl Store {
     fn write(&self, name: &str, contents: &[u8]) -> Result<()> {
         atomic::write(&self.dir.join(name), &self.dir.join(TMP_DIR), contents)
     }
+}
+
+/// The project directory containing `start`: `start` itself or its closest
+/// ancestor that has a `.altium/` directory. `start` should be absolute.
+pub fn find_root(start: &Path) -> Option<PathBuf> {
+    start
+        .ancestors()
+        .find(|dir| dir.join(DIR_NAME).is_dir())
+        .map(Path::to_path_buf)
 }
 
 fn memory_file(id: &str) -> Result<String> {

@@ -40,6 +40,9 @@ pub enum StoreError {
 
     #[error("invalid memory node id `{0}` (expected lowercase letters, digits and dashes)")]
     InvalidNodeId(String),
+
+    #[error("cannot find the user config directory (is HOME set?)")]
+    NoConfigDir,
 }
 
 impl StoreError {

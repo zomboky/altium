@@ -18,10 +18,10 @@
 
 ## 3. Registre et `altium init`
 
-- [ ] 3.1 Implémenter le registre XDG (`projects.toml`) et la résolution du projet courant en remontant l'arborescence. Vérifier avec des tests : sous-dossier, hors projet, projet déplacé (même id → chemin mis à jour)
-- [ ] 3.2 Implémenter `altium init [--name] [--force]` (idempotent, refus dans un sous-dossier d'un projet, création de `.altium/.gitignore`). Vérifier avec des tests d'intégration CLI (`assert_cmd`) qui couvrent chaque scénario de la spec project-registry
-- [ ] 3.3 Implémenter `altium list` et `altium forget` avec le statut présent/introuvable. Vérifier qu'après `forget` le dossier `.altium/` existe toujours
-- [ ] 3.4 Rédiger `README.md` (installation, `init`, `list`, `forget`) et vérifier que les commandes documentées s'exécutent telles qu'écrites
+- [x] 3.1 Implémenter le registre XDG (`projects.toml`) et la résolution du projet courant en remontant l'arborescence. Vérifier avec des tests : sous-dossier, hors projet, projet déplacé (même id → chemin mis à jour)
+- [x] 3.2 Implémenter `altium init [--name] [--force]` (idempotent, refus dans un sous-dossier d'un projet, création de `.altium/.gitignore`). Vérifier avec des tests d'intégration CLI (`assert_cmd`) qui couvrent chaque scénario de la spec project-registry
+- [x] 3.3 Implémenter `altium list` et `altium forget` avec le statut présent/introuvable. Vérifier qu'après `forget` le dossier `.altium/` existe toujours
+- [x] 3.4 Rédiger `README.md` (installation, `init`, `list`, `forget`) et vérifier que les commandes documentées s'exécutent telles qu'écrites
 
 ## 4. Tasks (altium-core)
 

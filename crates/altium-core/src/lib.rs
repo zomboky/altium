@@ -25,6 +25,7 @@ pub mod error;
 pub mod memory;
 pub mod patch;
 pub mod project;
+pub mod registry;
 pub mod store;
 pub mod task;
 pub mod time;
