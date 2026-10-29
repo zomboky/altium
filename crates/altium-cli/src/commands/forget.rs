@@ -10,7 +10,7 @@ use crate::display;
 
 pub fn run(target: Option<String>) -> Result<()> {
     let target = match target {
-        Some(target) => target,
+        Some(target) => display::expand_home(&target),
         None => {
             let cwd = env::current_dir().context("dossier courant inaccessible")?;
             let root = find_root(&cwd)

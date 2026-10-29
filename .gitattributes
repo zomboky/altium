@@ -1,0 +1,3 @@
+# LF line endings in every checkout, including on Windows where Git defaults
+# to core.autocrlf=true and would otherwise rewrite them as CRLF.
+* text=auto eol=lf

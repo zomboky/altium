@@ -41,7 +41,7 @@ pub enum StoreError {
     #[error("invalid memory node id `{0}` (expected lowercase letters, digits and dashes)")]
     InvalidNodeId(String),
 
-    #[error("cannot find the user config directory (is HOME set?)")]
+    #[error("cannot find the user config directory (set ALTIUM_CONFIG_DIR to choose one)")]
     NoConfigDir,
 }
 

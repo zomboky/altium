@@ -27,10 +27,11 @@ fn fixtures_match_the_schema_and_the_parser() {
         assert_valid(&validator, line);
     }
 
-    // The fixture is in canonical form: parsing and rendering keeps it as is.
+    // The fixture is in canonical form: parsing and rendering keeps it as is,
+    // up to the CRLF line endings a Windows checkout may have given it.
     let tasks = parse_tasks(FIXTURE, Path::new("tasks.jsonl")).unwrap();
     assert_eq!(tasks.len(), 5);
-    assert_eq!(render_tasks(&tasks), FIXTURE);
+    assert_eq!(render_tasks(&tasks), FIXTURE.replace("\r\n", "\n"));
 }
 
 #[test]

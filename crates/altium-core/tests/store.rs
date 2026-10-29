@@ -5,7 +5,7 @@ use std::path::Path;
 use std::thread;
 
 use altium_core::memory::{MemoryNode, NodeKind, NodeMeta};
-use altium_core::project::CURRENT_SCHEMA;
+use altium_core::project::{CURRENT_SCHEMA, Project};
 use altium_core::store::{DIR_NAME, Migrator};
 use altium_core::task::{Task, TaskId};
 use altium_core::time::Timestamp;
@@ -56,6 +56,22 @@ fn open_requires_a_project() {
 }
 
 #[test]
+fn complete_creates_only_the_missing_files() {
+    let root = tempfile::tempdir().unwrap();
+    let dir = root.path().join(DIR_NAME);
+    fs::create_dir_all(dir.join("memory")).unwrap();
+    fs::write(dir.join("tasks.jsonl"), "kept\n").unwrap();
+
+    let (store, created) = Store::complete(root.path(), || Project::new("foo")).unwrap();
+    assert_eq!(created, [".gitignore", "status.json", "project.toml"]);
+    assert_eq!(fs::read_to_string(dir.join("tasks.jsonl")).unwrap(), "kept\n");
+    assert_eq!(store.project().unwrap().name, "foo");
+
+    let (_, created) = Store::complete(root.path(), || unreachable!("project.toml exists")).unwrap();
+    assert!(created.is_empty());
+}
+
+#[test]
 fn open_recreates_untracked_dirs_after_a_clone() {
     let root = tempfile::tempdir().unwrap();
     Store::init(root.path(), "foo").unwrap();
@@ -99,6 +115,51 @@ fn concurrent_writers_lose_nothing() {
             .count();
         assert_eq!(count, 50);
     }
+}
+
+#[test]
+fn an_open_reader_does_not_block_writes() {
+    // On Windows, replacing a file that another handle has open needs POSIX
+    // rename semantics: the dashboard reading tasks.jsonl must not make a
+    // Claude hook fail to write it.
+    let root = tempfile::tempdir().unwrap();
+    let store = Store::init(root.path(), "foo").unwrap();
+    add_task(&store, "one");
+    let reader = fs::File::open(root.path().join(DIR_NAME).join("tasks.jsonl")).unwrap();
+
+    add_task(&store, "two");
+    drop(reader);
+    assert_eq!(store.tasks().unwrap().len(), 2);
+}
+
+#[test]
+fn crlf_line_endings_are_read() {
+    // Git for Windows checks text files out with CRLF line endings by default.
+    let root = tempfile::tempdir().unwrap();
+    let store = Store::init(root.path(), "foo").unwrap();
+    add_task(&store, "one");
+    store
+        .update_status(|status| {
+            status.summary = "Résumé".into();
+            Ok::<_, StoreError>(())
+        })
+        .unwrap();
+    store.save_memory_node(&node("auth-jwt")).unwrap();
+    let dir = root.path().join(DIR_NAME);
+    for name in ["project.toml", "status.json", "tasks.jsonl", "memory/auth-jwt.md"] {
+        let text = fs::read_to_string(dir.join(name)).unwrap();
+        fs::write(dir.join(name), text.replace('\n', "\r\n")).unwrap();
+    }
+
+    let store = Store::open(root.path()).unwrap();
+    let snapshot = store.snapshot().unwrap();
+    assert_eq!(snapshot.project.name, "foo");
+    assert_eq!(snapshot.status.unwrap().summary, "Résumé");
+    assert_eq!(snapshot.tasks.unwrap()[0].title, "one");
+    let nodes = snapshot.memory.unwrap();
+    assert_eq!(nodes[0].as_ref().unwrap().meta.title, "auth-jwt");
+    add_task(&store, "two");
+    assert_eq!(store.tasks().unwrap().len(), 2);
 }
 
 #[test]

@@ -18,14 +18,13 @@ use std::time::Duration;
 
 use crate::error::{Result, StoreError};
 use crate::memory::{self, MemoryNode};
-use crate::project::{self, CURRENT_SCHEMA, Project, ProjectConfig, ProjectStatus};
+use crate::project::{self, CURRENT_SCHEMA, Project, ProjectStatus};
 use crate::task::{self, Task};
-use crate::time::Timestamp;
 
 /// Name of the per-project directory.
 pub const DIR_NAME: &str = ".altium";
 
-const PROJECT_FILE: &str = "project.toml";
+pub const PROJECT_FILE: &str = "project.toml";
 const STATUS_FILE: &str = "status.json";
 const TASKS_FILE: &str = "tasks.jsonl";
 const MEMORY_DIR: &str = "memory";
@@ -63,29 +62,53 @@ impl Store {
             return Err(StoreError::AlreadyExists(dir));
         }
         fs::create_dir_all(&dir).map_err(StoreError::io(&dir))?;
-        let store = Store {
-            dir,
-            schema: CURRENT_SCHEMA,
-            supported: CURRENT_SCHEMA,
-        };
-        store.ensure_dirs()?;
-
-        let project = Project {
-            schema: CURRENT_SCHEMA,
-            id: ulid::Ulid::generate().to_string(),
-            name: name.to_owned(),
-            created_at: Timestamp::now(),
-            config: ProjectConfig::default(),
-        };
-        store.write(GITIGNORE, format!("{RUNTIME_DIR}/\n").as_bytes())?;
-        store.write(
-            STATUS_FILE,
-            project::render_status(&ProjectStatus::default()).as_bytes(),
-        )?;
-        store.write(TASKS_FILE, b"")?;
-        // Last, so that a half-initialized directory is not a valid project.
-        store.write(PROJECT_FILE, project::render_project(&project).as_bytes())?;
+        let (store, _) = Self::complete(root, || Project::new(name))?;
         Ok(store)
+    }
+
+    /// Creates the missing files of the existing `.altium/` directory of
+    /// `root`, never touching the others, and returns their names. `project`
+    /// is only called when `project.toml` itself is missing.
+    pub fn complete(root: &Path, project: impl FnOnce() -> Project) -> Result<(Store, Vec<&'static str>)> {
+        let dir = root.join(DIR_NAME);
+        if !dir.is_dir() {
+            return Err(StoreError::NotAProject(root.to_path_buf()));
+        }
+        let has_project = dir.join(PROJECT_FILE).is_file();
+        let store = if has_project {
+            let store = Self::open(root)?;
+            if store.is_read_only() {
+                return Ok((store, Vec::new()));
+            }
+            store
+        } else {
+            let store = Store {
+                dir,
+                schema: CURRENT_SCHEMA,
+                supported: CURRENT_SCHEMA,
+            };
+            store.ensure_dirs()?;
+            store
+        };
+
+        let mut created = Vec::new();
+        let defaults = [
+            (GITIGNORE, format!("{RUNTIME_DIR}/\n")),
+            (STATUS_FILE, project::render_status(&ProjectStatus::default())),
+            (TASKS_FILE, String::new()),
+        ];
+        for (name, contents) in defaults {
+            if !store.dir.join(name).exists() {
+                store.write(name, contents.as_bytes())?;
+                created.push(name);
+            }
+        }
+        // Last, so that a half-completed directory is not a valid project.
+        if !has_project {
+            store.write(PROJECT_FILE, project::render_project(&project()).as_bytes())?;
+            created.push(PROJECT_FILE);
+        }
+        Ok((store, created))
     }
 
     /// Opens the `.altium/` directory of `root`, migrating an older schema.

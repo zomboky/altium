@@ -14,6 +14,10 @@ La commande `altium setup` SHALL enregistrer les hooks Altium et le serveur MCP 
 - **THEN** les hooks de démarrage de session, d'avant et après outil, de soumission de prompt, de fin de réponse et de fin de session appellent `altium hook <event>`
 - **AND** le serveur MCP `altium` est disponible dans toutes les sessions Claude Code de l'utilisateur
 
+#### Scenario: Setup sous Windows
+- **WHEN** l'utilisateur lance `altium setup` sous Windows, avec ou sans Git Bash, et que le chemin de `altium.exe` contient un espace
+- **THEN** les hooks et le serveur MCP fonctionnent dans ses sessions Claude Code
+
 ### Requirement: Setup non destructif et réversible
 `altium setup` MUST conserver les hooks et serveurs MCP déjà configurés par l'utilisateur, MUST être idempotent et SHALL sauvegarder la configuration avant de la modifier. `altium setup --uninstall` SHALL retirer uniquement ce qu'Altium a ajouté.
 
@@ -26,7 +30,7 @@ La commande `altium setup` SHALL enregistrer les hooks Altium et le serveur MCP 
 - **THEN** le hook de l'utilisateur est présent et inchangé à chaque étape
 
 ### Requirement: Diagnostic de l'intégration
-La commande `altium doctor` SHALL vérifier et afficher l'état de l'intégration : hooks installés, MCP enregistré, binaire accessible depuis le PATH des hooks, dashboard joignable, et projet courant détecté.
+La commande `altium doctor` SHALL vérifier et afficher l'état de l'intégration : hooks installés, MCP enregistré, binaire appelé par les hooks présent, dashboard joignable, et projet courant détecté.
 
 #### Scenario: Hook manquant
 - **WHEN** l'utilisateur a retiré à la main le hook PostToolUse puis lance `altium doctor`
@@ -92,6 +96,36 @@ Tous les textes fixes qu'Altium produit pour Claude (contexte injecté, consigne
 #### Scenario: Erreur MCP
 - **WHEN** un outil MCP refuse une opération invalide
 - **THEN** le message d'erreur renvoyé à Claude est en anglais
+
+### Requirement: État des lieux d'un projet existant
+La commande `altium survey` SHALL lancer une session Claude Code interactive dans le projet. Claude y parcourt les fichiers du projet en respectant son `.gitignore`, les conversations Claude Code passées dans ce dossier avec leurs dates, et la mémoire automatique de Claude pour ce dossier, puis écrit le résumé, la phase et des nœuds de mémoire datés qui citent leur source.
+
+#### Scenario: Projet avec un historique
+- **WHEN** l'utilisateur lance `altium survey` dans un projet qui contient un README, une liste de choses à faire en Markdown et 30 conversations Claude passées
+- **THEN** le résumé et la phase du projet sont renseignés
+- **AND** les nœuds de mémoire tirés des conversations portent la date de la conversation et la citent comme source
+
+### Requirement: Tasks proposées validées une par une
+Pendant l'état des lieux, Claude MUST demander à l'utilisateur, une proposition à la fois, s'il faut créer chaque task qu'il propose comme task à faire, comme piste à explorer, ou l'ignorer. Aucune task n'est créée sans réponse.
+
+#### Scenario: Proposition acceptée
+- **WHEN** l'utilisateur répond « à faire » à une proposition
+- **THEN** une task `todo` est créée, attribuée à l'acteur « claude », avant que la proposition suivante soit posée
+
+#### Scenario: Proposition ignorée
+- **WHEN** l'utilisateur répond « ignorer » à une task proposée
+- **THEN** aucune task n'est créée pour cette proposition
+
+#### Scenario: Piste à explorer
+- **WHEN** l'utilisateur répond « à explorer » à une proposition
+- **THEN** une task `todo` portant le tag `explore` est créée, attribuée à l'acteur « claude »
+
+### Requirement: État des lieux proposé par init
+`altium init` SHALL proposer l'état des lieux quand le dossier contient déjà des fichiers et que Claude Code est installé. La commande MUST NOT le lancer sans l'accord de l'utilisateur.
+
+#### Scenario: Init sans état des lieux
+- **WHEN** l'utilisateur lance `altium init` dans un dossier non vide et refuse l'état des lieux, ou lance la commande hors d'un terminal interactif
+- **THEN** `.altium/` est créé et aucune session Claude n'est lancée
 
 ### Requirement: Traçabilité des modifications faites par Claude
 Toute modification faite via MCP SHALL être attribuée à l'acteur « claude » avec l'identifiant de session. Toute modification faite depuis le dashboard SHALL être attribuée à l'acteur « user ».

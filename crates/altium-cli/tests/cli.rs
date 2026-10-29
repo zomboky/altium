@@ -1,12 +1,13 @@
-//! `altium init`, `list` and `forget`, run as a user would, against a
-//! throwaway registry (`XDG_CONFIG_HOME`) and project directories.
+//! `altium init`, `list` and `forget`, their help and their command-line
+//! errors, run as a user would, against a throwaway registry
+//! (`ALTIUM_CONFIG_DIR`) and project directories.
 
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
 use altium_core::Store;
-use altium_core::registry::Registry;
+use altium_core::registry::{Registry, canonical_path};
 use altium_core::task::{Task, TaskId};
 use altium_core::time::Timestamp;
 use assert_cmd::prelude::*;
@@ -26,12 +27,15 @@ impl Env {
 
     /// A project directory, created empty.
     fn dir(&self, relative: &str) -> PathBuf {
-        let dir = fs::canonicalize(self.tmp.path())
-            .unwrap()
-            .join("projects")
-            .join(relative);
+        let dir = canonical_path(self.tmp.path()).unwrap().join("projects").join(relative);
         fs::create_dir_all(&dir).unwrap();
         dir
+    }
+
+    /// The registry directory. On Windows, `XDG_CONFIG_HOME` and `HOME` do
+    /// not move it: without `ALTIUM_CONFIG_DIR`, tests would use the real one.
+    fn config_dir(&self) -> PathBuf {
+        self.tmp.path().join("config")
     }
 
     fn altium(&self, cwd: &Path, args: &[&str]) -> Command {
@@ -39,13 +43,13 @@ impl Env {
         command
             .args(args)
             .current_dir(cwd)
-            .env("XDG_CONFIG_HOME", self.tmp.path().join("config"))
+            .env("ALTIUM_CONFIG_DIR", self.config_dir())
             .env("HOME", self.tmp.path().join("home"));
         command
     }
 
     fn registry(&self) -> Registry {
-        Registry::at(self.tmp.path().join("config/altium"))
+        Registry::at(self.config_dir())
     }
 }
 
@@ -135,6 +139,68 @@ fn reinit_keeps_the_data_and_registers_again() {
     assert_eq!(fs::read(foo.join(".altium/tasks.jsonl")).unwrap(), tasks_before);
     assert_eq!(Store::open(&foo).unwrap().project().unwrap().name, "foo");
     assert_eq!(env.registry().entries().unwrap().len(), 1);
+}
+
+#[test]
+fn init_completes_a_partial_altium_dir() {
+    let env = Env::new();
+    let foo = env.dir("foo");
+    env.altium(&foo, &["init", "--name", "Mon API"]).assert().success();
+    let id = Store::open(&foo).unwrap().project().unwrap().id;
+    let altium = foo.join(".altium");
+    fs::remove_file(altium.join("project.toml")).unwrap();
+    fs::remove_file(altium.join("status.json")).unwrap();
+    fs::write(altium.join("tasks.jsonl"), "").unwrap();
+    let tasks_before = fs::read(altium.join("tasks.jsonl")).unwrap();
+
+    // The registry still knows the project: it keeps its id and name.
+    env.altium(&foo, &["init"])
+        .assert()
+        .success()
+        .stdout(contains("Projet « Mon API » complété"))
+        .stdout(contains("créés      status.json, project.toml"));
+    let project = Store::open(&foo).unwrap().project().unwrap();
+    assert_eq!((project.id, project.name.as_str()), (id, "Mon API"));
+    assert_eq!(fs::read(altium.join("tasks.jsonl")).unwrap(), tasks_before);
+    assert_eq!(env.registry().entries().unwrap().len(), 1);
+
+    let bar = env.dir("bar");
+    fs::create_dir_all(bar.join(".altium/memory")).unwrap();
+    env.altium(&bar, &["init"])
+        .assert()
+        .success()
+        .stdout(contains("Projet « bar » complété"))
+        .stdout(contains(
+            "créés      .gitignore, status.json, tasks.jsonl, project.toml",
+        ));
+}
+
+#[test]
+fn init_keeps_altium_visible_to_git() {
+    let env = Env::new();
+    let foo = env.dir("foo");
+    fs::write(foo.join(".gitignore"), "*\n!/.gitignore\n!/src/**\n").unwrap();
+
+    env.altium(&foo, &["init"])
+        .assert()
+        .success()
+        .stdout(contains("Le .gitignore excluait .altium/ (règle « * »)"));
+    let gitignore = fs::read_to_string(foo.join(".gitignore")).unwrap();
+    assert!(gitignore.starts_with("*\n!/.gitignore\n!/src/**\n#"));
+    assert!(gitignore.ends_with("!/.altium/\n!/.altium/**\n"));
+    env.altium(&foo, &["init"])
+        .assert()
+        .success()
+        .stdout(contains(".gitignore").not());
+
+    // Git itself agrees: `.altium/` is versioned, its `runtime/` is not.
+    let git = |args: &[&str]| Command::new("git").args(args).current_dir(&foo).status();
+    if git(&["init", "-q"]).is_ok_and(|status| status.success()) {
+        let ignored = |path| git(&["check-ignore", "-q", path]).unwrap().success();
+        assert!(!ignored(".altium/project.toml"));
+        assert!(!ignored(".altium/tasks.jsonl"));
+        assert!(ignored(".altium/runtime/lock"));
+    }
 }
 
 #[test]
@@ -243,4 +309,56 @@ fn forget_by_path_works_once_the_directory_is_gone() {
         .assert()
         .success()
         .stdout(contains("Projet « gone » retiré du suivi"));
+}
+
+#[test]
+fn help_is_in_french() {
+    let env = Env::new();
+    let dir = env.dir("foo");
+
+    env.altium(&dir, &["--help"])
+        .assert()
+        .success()
+        .stdout(contains("Utilisation : altium <COMMANDE>"))
+        .stdout(contains("Commandes :"))
+        .stdout(contains("-V, --version  Affiche la version"))
+        .stdout(contains("Usage").not())
+        .stdout(contains("Print").not());
+    env.altium(&dir, &["forget", "-h"])
+        .assert()
+        .success()
+        .stdout(contains("Utilisation : altium forget [PROJET]"))
+        .stdout(contains("Arguments :"))
+        .stdout(contains("-h, --help  Affiche l'aide"));
+    env.altium(&dir, &["-V"])
+        .assert()
+        .success()
+        .stdout(format!("altium {}\n", altium_core::VERSION));
+}
+
+#[test]
+fn command_line_errors_are_in_french() {
+    let env = Env::new();
+    let dir = env.dir("foo");
+
+    env.altium(&dir, &["inti"])
+        .assert()
+        .code(2)
+        .stderr(contains("erreur : commande inconnue « inti »"))
+        .stderr(contains("conseil : vouliez-vous dire « init » ?"))
+        .stderr(contains("Utilisation : altium <COMMANDE>"))
+        .stderr(contains("Pour plus d'informations, essayez « --help »."));
+    // Clap writes these tips as English sentences.
+    env.altium(&dir, &["--force", "init"])
+        .assert()
+        .code(2)
+        .stderr(contains("conseil : « init --force » existe"));
+    env.altium(&dir, &["forget", "--foo"]).assert().code(2).stderr(contains(
+        "conseil : pour passer « --foo » comme valeur, utilisez « -- --foo »",
+    ));
+    env.altium(&dir, &["init", "--name"])
+        .assert()
+        .code(2)
+        .stderr(contains("erreur : il manque une valeur pour « --name <NOM> »"));
+    assert!(!dir.join(".altium").exists());
 }

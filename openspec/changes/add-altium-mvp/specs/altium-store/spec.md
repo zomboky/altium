@@ -42,6 +42,11 @@ Toute écriture dans `.altium/` MUST être atomique : un lecteur ne voit jamais 
 - **WHEN** le processus est tué au milieu de la sauvegarde du fichier des tasks
 - **THEN** le fichier des tasks reste dans son état précédent et reste valide
 
+#### Scenario: Fichier ouvert par un lecteur
+- **WHEN** le dashboard ou un autre programme lit le fichier des tasks au moment où Claude en crée une
+- **THEN** l'écriture réussit, sous Linux comme sous Windows
+- **AND** le lecteur voit l'ancienne ou la nouvelle version du fichier, jamais un mélange des deux
+
 ### Requirement: Écritures concurrentes sans perte
 Quand plusieurs écrivains (plusieurs sessions Claude, hooks, dashboard) modifient le même projet, le système MUST sérialiser les modifications de façon à n'en perdre aucune. Une modification fondée sur une version périmée SHALL être réappliquée sur la dernière version ou rejetée avec un conflit explicite.
 
@@ -60,3 +65,11 @@ Si un fichier de `.altium/` est illisible ou invalide, le système MUST le signa
 - **WHEN** le fichier des tasks contient une erreur de syntaxe
 - **THEN** le dashboard affiche une erreur sur la section Tasks du projet, avec le fichier et la ligne en cause
 - **AND** l'état, la mémoire et l'activité du projet restent affichés
+
+### Requirement: Portabilité entre Linux et Windows
+Un même dossier `.altium/` SHALL pouvoir être lu et modifié sous Linux comme sous Windows. Le système MUST accepter les fins de ligne LF et CRLF, que peut produire un checkout git sous Windows, et SHALL écrire en LF.
+
+#### Scenario: Projet cloné sous Windows
+- **WHEN** un projet commité sous Linux est cloné sous Windows avec `core.autocrlf=true`, puis Claude modifie une task
+- **THEN** Altium lit l'état, les tasks et la mémoire du projet sans erreur
+- **AND** le diff git ne touche que la task modifiée

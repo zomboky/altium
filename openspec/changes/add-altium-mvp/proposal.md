@@ -6,9 +6,10 @@ Quand Claude Code travaille sur plusieurs projets, on ne voit nulle part en un c
 
 ## What Changes
 
-- Nouvelle CLI `altium` (Rust, binaire unique, Linux en priorité, cible Omarchy/Hyprland) :
+- Nouvelle CLI `altium` (Rust, binaire unique) pour Linux, avec Omarchy/Hyprland comme cible principale, et pour Windows 10 et 11 :
   - `altium setup` : installation unique au niveau utilisateur des hooks Claude Code et du serveur MCP.
-  - `altium init` : initialise `.altium/` dans le dossier courant et référence le projet dans un registre global.
+  - `altium init` : initialise `.altium/` dans le dossier courant et référence le projet dans un registre global. Dans un dossier qui a déjà un historique, elle complète un `.altium/` incomplet sans rien écraser, garde `.altium/` versionné malgré un `.gitignore` en liste blanche, et propose un état des lieux.
+  - `altium survey` : état des lieux d'un projet existant par Claude (fichiers, conversations passées datées, mémoire de Claude), avec une question à l'utilisateur pour chaque task proposée.
   - `altium serve` : lance le dashboard web local, avec mises à jour en temps réel.
   - `altium hook <event>` / `altium mcp` : points d'entrée appelés par Claude Code.
 - Un format de stockage `.altium/` compact, versionné et lisible : état du projet, tasks, graphe de mémoire, journal d'activité.
@@ -42,7 +43,7 @@ _Aucune : le projet ne contient encore aucune spec._
 ## Impact
 
 - **Nouveau code** : un workspace Rust (cœur, CLI, serveur MCP, serveur web) et un front web (Svelte + Vite) embarqué dans le binaire.
-- **Système de l'utilisateur** : `altium setup` modifie la configuration utilisateur de Claude Code (`~/.claude/settings.json` pour les hooks, enregistrement MCP au niveau user). Le registre se trouve dans `~/.config/altium/`. Le dashboard peut tourner en service `systemd --user`.
+- **Système de l'utilisateur** : `altium setup` modifie la configuration utilisateur de Claude Code (`~/.claude/settings.json` pour les hooks, enregistrement MCP au niveau user). Le registre se trouve dans `~/.config/altium/` sous Linux et dans `%APPDATA%\altium\` sous Windows. Le dashboard peut démarrer avec la session : service `systemd --user` sous Linux, programme de démarrage du compte sous Windows.
 - **Projets suivis** : ajout d'un dossier `.altium/`. L'état, les tasks et la mémoire sont versionnables avec git. Le journal d'activité est exclu via un `.gitignore` local.
-- **Dépendances** : toolchain Rust (absente de la machine de dev actuelle), Node uniquement pour builder le front, `git` et `notify-send` à l'exécution.
-- **Hors périmètre** : l'app desktop Tauri, la synchronisation multi-machines, le multi-utilisateur, la visualisation graphique du graphe de mémoire et le support macOS/Windows.
+- **Dépendances** : toolchain Rust (MSVC sous Windows), Node uniquement pour builder le front, `git` à l'exécution, et un service de notifications (mako sous Omarchy, centre de notifications sous Windows).
+- **Hors périmètre** : l'app desktop Tauri, la synchronisation multi-machines, le multi-utilisateur, la visualisation graphique du graphe de mémoire et le support macOS.

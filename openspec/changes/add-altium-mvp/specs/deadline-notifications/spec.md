@@ -20,6 +20,10 @@ Quand la deadline d'une task non terminée est dépassée, le système SHALL env
 - **WHEN** la deadline d'une task `doing` vient d'être dépassée
 - **THEN** une notification urgente signale la task en retard
 
+#### Scenario: Deadline passée sous Windows
+- **WHEN** la deadline d'une task est dépassée sur un poste Windows
+- **THEN** une notification au nom d'Altium signale la task en retard et reste affichée jusqu'à ce que l'utilisateur la ferme
+
 ### Requirement: Notification de task bloquée
 Quand Claude passe une task à `blocked`, le système SHALL envoyer une notification avec le projet, la task et la raison du blocage. Un blocage décidé par l'utilisateur dans le dashboard MUST NOT déclencher de notification.
 

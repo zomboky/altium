@@ -32,6 +32,19 @@ pub struct Project {
     pub config: ProjectConfig,
 }
 
+impl Project {
+    /// A new project named `name`, with a fresh id.
+    pub fn new(name: &str) -> Project {
+        Project {
+            schema: CURRENT_SCHEMA,
+            id: ulid::Ulid::generate().to_string(),
+            name: name.to_owned(),
+            created_at: Timestamp::now(),
+            config: ProjectConfig::default(),
+        }
+    }
+}
+
 /// Per-project settings. Unset values fall back to the global defaults.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 pub struct ProjectConfig {

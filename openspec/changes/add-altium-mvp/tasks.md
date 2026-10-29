@@ -22,6 +22,8 @@
 - [x] 3.2 Implémenter `altium init [--name] [--force]` (idempotent, refus dans un sous-dossier d'un projet, création de `.altium/.gitignore`). Vérifier avec des tests d'intégration CLI (`assert_cmd`) qui couvrent chaque scénario de la spec project-registry
 - [x] 3.3 Implémenter `altium list` et `altium forget` avec le statut présent/introuvable. Vérifier qu'après `forget` le dossier `.altium/` existe toujours
 - [x] 3.4 Rédiger `README.md` (installation, `init`, `list`, `forget`) et vérifier que les commandes documentées s'exécutent telles qu'écrites
+- [x] 3.5 Porter `init`, `list` et `forget` sous Windows : `make.ps1` (pendant du `Makefile`), `ALTIUM_CONFIG_DIR`, chemins du registre sans préfixe `\\?\`, `~` et casse dans `forget`, écriture qui réussit malgré un lecteur, lecture des fins de ligne CRLF, section Windows du README. Vérifier avec la suite de tests sous Windows et un essai réel dans PowerShell et cmd
+- [x] 3.6 Rendre `altium init` sûre dans un dossier qui a déjà un historique : compléter un `.altium/` incomplet sans rien écraser (identité reprise du registre si `project.toml` manque) et ajouter au `.gitignore` racine les exceptions qui versionnent `.altium/` quand une règle générale l'exclut, sauf règle qui nomme `.altium`. Aide et erreurs de la CLI en français. Vérifier avec des tests, dont un contrôle par `git check-ignore`
 
 ## 4. Tasks (altium-core)
 
@@ -42,21 +44,21 @@
 ## 6. État du projet (altium-core)
 
 - [ ] 6.1 Implémenter le résumé (≤ 600 caractères, auteur et date), les phases configurables, la progression et l'indicateur de santé. Vérifier avec le test « 10 tasks → 4/9 (44 %), 1 en retard »
-- [ ] 6.2 Implémenter la lecture git via la commande `git` (branche, fichiers modifiés et non suivis, ahead/behind, 5 derniers commits), avec timeout et absence de section hors dépôt. Vérifier avec des tests sur des dépôts temporaires
+- [ ] 6.2 Implémenter la lecture git via la commande `git` (branche, fichiers modifiés et non suivis, ahead/behind, 5 derniers commits), avec timeout, absence de section hors dépôt et, sous Windows, `CREATE_NO_WINDOW` (D8). Vérifier avec des tests sur des dépôts temporaires, sous Linux et sous Windows
 
 ## 7. Hooks et activité
 
-- [ ] 7.1 Capturer de vrais payloads de hooks avec la version de Claude Code installée, puis les enregistrer en fixtures (`tests/fixtures/hooks/`). Vérifier que chaque événement enregistré (D5) a au moins une fixture
-- [ ] 7.2 Implémenter `altium hook <event>` : parse tolérant, rattachement au projet, ajout au journal en `O_APPEND`, toujours `exit 0`, erreurs dans le log XDG. Vérifier avec des tests sur fixtures, plus un test hors projet (aucune écriture) et un test sur `.altium/` corrompu (exit 0, sortie vide)
+- [ ] 7.1 Capturer de vrais payloads de hooks avec la version de Claude Code installée, sous Linux et sous Windows, puis les enregistrer en fixtures (`tests/fixtures/hooks/`). Vérifier que chaque événement enregistré (D5) a au moins une fixture et que cette version accepte les hooks en forme exec (`args`)
+- [ ] 7.2 Implémenter `altium hook <event>` : parse tolérant, rattachement au projet, ajout au journal en mode append (D4), toujours `exit 0`, erreurs dans le log Altium (D10). Vérifier avec des tests sur fixtures, un test hors projet (aucune écriture), un test sur `.altium/` corrompu (exit 0, sortie vide) et un test de 4 processus qui écrivent en parallèle dans le journal sans mêler leurs lignes, sous Linux et sous Windows
 - [ ] 7.3 Implémenter l'extraction de la cible courte par outil, la troncature et le masquage des secrets. Vérifier avec des tests unitaires de masquage (Bearer, sk-, ghp_, mot de passe dans une URL, KEY=)
-- [ ] 7.4 Implémenter les sessions (début, fin, PID de l'ancêtre `claude`, inactivité après 30 min), l'appariement Pre/Post par `tool_use_id` et l'état « outil en cours ». Vérifier avec des tests de séquences d'événements
+- [ ] 7.4 Implémenter les sessions (début, fin, PID de l'ancêtre `claude` lu dans `/proc` sous Linux et dans un instantané des processus sous Windows, inactivité après 30 min), l'appariement Pre/Post par `tool_use_id` et l'état « outil en cours ». Vérifier avec des tests de séquences d'événements, et à la main que l'ancêtre est retrouvé sous Windows
 - [ ] 7.5 Implémenter la rotation du journal et les agrégats `stats.json` qui survivent à la rotation, ainsi que le calcul des statistiques par période. Vérifier avec un test : les compteurs restent justes après rotation
-- [ ] 7.6 Mesurer la latence du hook (benchmark sur 1 000 appels) et vérifier un p95 < 100 ms. Le résultat est noté dans `docs/perf.md`
+- [ ] 7.6 Mesurer la latence du hook (benchmark sur 1 000 appels) sous Linux et sous Windows, et vérifier un p95 < 100 ms sur chacun. Le résultat est noté dans `docs/perf.md`
 
 ## 8. Contexte de session et intégration Claude
 
 - [ ] 8.1 Implémenter `context::build(project, budget)` (sections, estimation de tokens, réduction ordonnée, lignes `+N …`) et la sortie `SessionStart` (`additionalContext`). Vérifier avec des tests en snapshot (petit projet, gros projet qui dépasse le budget) : intitulés et consignes en anglais, consigne de langue présente, titres de tasks restitués tels quels
-- [ ] 8.2 Implémenter `altium setup` et `--uninstall` (sauvegarde, idempotence, préservation des hooks existants, chemin absolu du binaire, enregistrement MCP user). Vérifier avec des tests sur un faux `HOME` qui couvrent les scénarios de la spec claude-integration
+- [ ] 8.2 Implémenter `altium setup` et `--uninstall` (sauvegarde, idempotence, préservation des hooks existants, hooks en forme exec avec le chemin absolu du binaire, respect de `CLAUDE_CONFIG_DIR`, enregistrement MCP user). Vérifier avec des tests sur un faux dossier de config Claude (`CLAUDE_CONFIG_DIR`, car `HOME` ne déplace rien sous Windows) qui couvrent les scénarios de la spec claude-integration
 - [ ] 8.3 Implémenter `altium doctor` (hooks, MCP, binaire, dashboard, projet courant, ids de tasks en double). Vérifier qu'un hook retiré à la main est signalé
 
 ## 9. Serveur MCP
@@ -64,14 +66,18 @@
 - [ ] 9.1 Monter `altium mcp` (rmcp, stdio) avec la résolution du projet (cwd ou roots), l'erreur hors projet et le champ `instructions` (en anglais, avec la consigne de langue de mémoire). Vérifier avec un test client MCP stdio qui liste les outils et contrôle que descriptions et erreurs sont en anglais
 - [ ] 9.2 Implémenter les outils status, task et memory (D6), avec la sortie texte compacte, sans suppression de task, et en attribuant chaque modification à l'acteur `claude` et à sa session (mapping par PID ancêtre, avec repli). Vérifier avec des tests d'intégration MCP par outil
 - [ ] 9.3 Documenter les outils MCP et le format de sortie dans `docs/mcp.md`, puis vérifier manuellement dans une vraie session Claude Code : création d'une task et chargement d'un nœud avec `follow=depends_on`
+- [ ] 9.4 Implémenter le condensé des conversations Claude Code d'un projet (D12) : dossier `<config Claude>/projects/<chemin encodé>/`, une section datée par conversation, messages tronqués et masqués, mémoire automatique jointe, seulement les conversations postérieures au dernier état des lieux. Vérifier avec des fixtures de conversations réelles, sous Linux et sous Windows
+- [ ] 9.5 Implémenter `altium survey` (lancement de `claude` interactif avec le prompt d'état des lieux et `--add-dir`, contrôle de `altium setup`) et la proposition O/n à la fin de `altium init` (terminal interactif, dossier non vide, `claude` trouvé). Vérifier avec des tests : pas de proposition hors terminal ni dans un dossier vide, rien de lancé sans accord
+- [ ] 9.6 Valider à la main l'état des lieux sur meudon : résumé et phase renseignés, nœuds datés qui citent leur source, une question par task proposée, « ignorer » ne crée rien, « à explorer » crée une task taguée `explore`
 
 ## 10. Serveur web
 
 - [ ] 10.1 Implémenter `altium serve` (axum, 127.0.0.1:7420, port configurable, échec explicite si le port est occupé) et le service des assets embarqués. Vérifier qu'une requête depuis une IP non loopback est impossible et qu'un port occupé produit une erreur claire
 - [ ] 10.2 Implémenter le middleware Host et Origin. Vérifier avec des tests : Host étranger → 403, POST avec Origin étranger → 403, même origine → OK
 - [ ] 10.3 Implémenter l'API REST : projets (liste, détail, oubli), status, tasks (CRUD, patch par champ, 409 en cas de conflit, réordonnancement), activité (flux filtrable, stats), mémoire (liste, détail, épinglage), git. Vérifier avec des tests d'API pour chaque route
-- [ ] 10.4 Implémenter le watcher `notify` (debounce, ajout et retrait dynamique des projets du registre) et le flux SSE `/api/stream` par portée, ainsi que le rafraîchissement git déclenché et périodique. Vérifier avec un test : écriture d'un fichier → événement SSE en moins de 2 s
-- [ ] 10.5 Implémenter `altium open` (`xdg-open` sur le projet courant ou la vue d'ensemble) et `altium service install|uninstall` (unit systemd user). Vérifier manuellement sur Omarchy que le service démarre à la connexion
+- [ ] 10.4 Implémenter le watcher `notify` (debounce, ajout et retrait dynamique des projets du registre) et le flux SSE `/api/stream` par portée, ainsi que le rafraîchissement git déclenché et périodique. Vérifier avec un test, sous Linux et sous Windows : écriture d'un fichier → événement SSE en moins de 2 s
+- [ ] 10.5 Implémenter `altium open` (crate `opener`, sur le projet courant ou la vue d'ensemble) et `altium service install|uninstall` sous Linux (unit systemd user). Vérifier manuellement sur Omarchy que le service démarre à la connexion
+- [ ] 10.6 Sous Windows, implémenter `altium serve --background` (détachement de la console) et `altium service install|uninstall` avec la clé `Run` du compte et le raccourci du menu Démarrer qui déclare l'AUMID `Altium` (D9, D10), puis compléter le README. Vérifier manuellement qu'après une reconnexion le dashboard répond et qu'aucune fenêtre de console ne reste ouverte
 
 ## 11. Front web
 
@@ -86,12 +92,13 @@
 ## 12. Notifications
 
 - [ ] 12.1 Implémenter le planificateur de deadlines (proche, dépassée), la notification de blocage par l'acteur `claude`, et le dédoublonnage persistant via `notified.json`. Vérifier avec des tests à horloge injectée et un faux émetteur
-- [ ] 12.2 Implémenter l'émission via `notify-rust` (urgence, action « Ouvrir » vers `xdg-open`), le rattrapage récapitulatif au démarrage, la configuration globale et par projet, et la dégradation propre sans service de notifications. Vérifier manuellement avec mako sur Omarchy
+- [ ] 12.2 Implémenter l'émission via `notify-rust` (urgence, scénario « reminder » sous Windows, action « Ouvrir » via `opener`), le rattrapage récapitulatif au démarrage, la configuration globale et par projet, et la dégradation propre sans service de notifications. Vérifier manuellement avec mako sur Omarchy, et dans le centre de notifications de Windows (notification au nom d'Altium)
 
 ## 13. Intégration de bout en bout
 
-- [ ] 13.1 Test e2e scripté : `setup`, `init` dans un projet temporaire, puis rejeu des fixtures de hooks d'une session complète. Vérifier dans le dashboard (Playwright) la session active, l'outil en cours, le flux d'activité et une task créée via MCP qui apparaît en moins de 2 s
+- [ ] 13.1 Test e2e scripté, exécuté sous Linux et sous Windows : `setup`, `init` dans un projet temporaire, puis rejeu des fixtures de hooks d'une session complète. Vérifier dans le dashboard (Playwright) la session active, l'outil en cours, le flux d'activité et une task créée via MCP qui apparaît en moins de 2 s
 - [ ] 13.2 Validation manuelle sur Omarchy (x86_64) avec une vraie session Claude Code sur deux projets : contexte injecté au démarrage, kanban mis à jour en direct, notification de deadline, `git status` du projet limité au fichier des tasks. Noter les résultats dans `docs/validation.md`
+- [ ] 13.3 Validation manuelle sous Windows 11 avec une vraie session Claude Code : mêmes points que 13.2, plus le démarrage du dashboard à l'ouverture de session (aucune console restante) et les notifications au nom d'Altium. Noter les résultats dans `docs/validation.md`
 
 ## Workflow follow-up
 

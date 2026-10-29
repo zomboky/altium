@@ -22,6 +22,7 @@ macro_rules! serde_via_str {
 
 pub mod actor;
 pub mod error;
+pub mod gitignore;
 pub mod memory;
 pub mod patch;
 pub mod project;

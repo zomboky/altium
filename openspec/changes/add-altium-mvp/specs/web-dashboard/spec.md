@@ -31,6 +31,11 @@ Le système SHALL permettre d'installer le serveur comme service utilisateur dé
 - **WHEN** l'utilisateur lance `altium open` dans `~/projects/foo`
 - **THEN** le navigateur s'ouvre directement sur la page du projet `foo`
 
+#### Scenario: Démarrage avec une session Windows
+- **WHEN** l'utilisateur a lancé `altium service install` sous Windows, puis ouvre une nouvelle session
+- **THEN** le dashboard répond sur `127.0.0.1:7420`
+- **AND** aucune fenêtre de console ne reste ouverte
+
 ### Requirement: Vue d'ensemble multi-projets
 La page d'accueil SHALL afficher une carte par projet du registre avec : nom, phase, indicateur de santé, progression, prochaine deadline, session active et outil en cours, branche git et date de dernière activité. Les projets SHALL être triables par dernière activité, par nom et par urgence.
 
