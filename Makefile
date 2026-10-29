@@ -4,7 +4,7 @@
 CARGO ?= cargo
 NPM ?= npm
 
-.PHONY: build web test dev clean
+.PHONY: build web test e2e dev clean
 
 build: web
 	$(CARGO) build --release -p altium-cli
@@ -19,6 +19,13 @@ web/node_modules: web/package.json web/package-lock.json
 test: web/node_modules
 	$(CARGO) test --workspace
 	$(NPM) --prefix web run check
+	$(NPM) --prefix web run test
+
+# End-to-end: the real binary, a throwaway config and Playwright's Chromium
+# (`npx --prefix web playwright install chromium` once).
+e2e: web
+	$(CARGO) build -p altium-cli
+	$(NPM) --prefix web run e2e
 
 # Front with hot reload; API calls are proxied to `altium serve` on :7420.
 dev: web/node_modules

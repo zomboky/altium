@@ -16,7 +16,7 @@ directory, with the Windows PowerShell 5.1 that ships with Windows.
 [CmdletBinding()]
 param(
     [Parameter(Position = 0)]
-    [ValidateSet('build', 'web', 'test', 'dev', 'clean')]
+    [ValidateSet('build', 'web', 'test', 'e2e', 'dev', 'clean')]
     [string] $Target = 'build'
 )
 
@@ -73,6 +73,13 @@ try {
             Install-WebDependencies
             Invoke-Tool $Cargo @('test', '--workspace')
             Invoke-Tool $Npm @('--prefix', 'web', 'run', 'check')
+            Invoke-Tool $Npm @('--prefix', 'web', 'run', 'test')
+        }
+        # End-to-end: the real binary, a throwaway config, the installed Edge.
+        'e2e' {
+            Build-Web
+            Invoke-Tool $Cargo @('build', '-p', 'altium-cli')
+            Invoke-Tool $Npm @('--prefix', 'web', 'run', 'e2e')
         }
         # Front with hot reload; API calls are proxied to `altium serve` on :7420.
         'dev' {

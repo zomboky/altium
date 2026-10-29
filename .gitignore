@@ -4,6 +4,8 @@ target/
 # Front
 web/node_modules/
 web/dist/
+web/test-results/
+web/playwright-report/
 
 # Claude Code (local)
 .claude/settings.local.json

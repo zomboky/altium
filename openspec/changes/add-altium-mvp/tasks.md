@@ -81,13 +81,13 @@
 
 ## 11. Front web
 
-- [ ] 11.1 Créer la couche `web/src/lib/api/` (interface unique, implémentation HTTP + SSE, reconnexion et resync) et le routage avec URLs stables. Vérifier avec des tests Vitest de l'adaptateur (reconnexion → refetch complet)
-- [ ] 11.2 Construire la vue d'ensemble multi-projets (cartes, tris, projet introuvable grisé avec « oublier »). Vérifier avec un test de composant et à la main avec 4 projets
-- [ ] 11.3 Construire la synthèse projet (résumé, phase éditable, progression, santé, git). Vérifier qu'un changement de résumé par Claude s'affiche sans recharger la page
-- [ ] 11.4 Construire la vue liste des tasks (hiérarchie, filtres, création et édition, deadline colorée, réordonnancement, suppression confirmée, gestion des conflits 409). Vérifier avec des tests de composant
-- [ ] 11.5 Construire le kanban (drag & drop entre statuts et dans une colonne, saisie de raison pour « Bloqué »). Vérifier avec un test e2e Playwright du glisser vers « En cours » et vers « Bloqué »
-- [ ] 11.6 Construire la vue activité (sessions, outil en cours avec chrono, flux filtrable, stats par période) et la vue mémoire (liste filtrable, détail, liens cliquables, liens cassés, contradictions, épinglage). Vérifier avec des tests de composant
-- [ ] 11.7 Ajouter le thème clair/sombre (`prefers-color-scheme`) et les raccourcis clavier (`n`, changement de projet, liste/kanban, recherche). Vérifier avec un test e2e « `n` ouvre le formulaire avec le focus sur le titre »
+- [x] 11.1 Créer la couche `web/src/lib/api/` (interface unique, implémentation HTTP + SSE, reconnexion et resync) et le routage avec URLs stables. Vérifier avec des tests Vitest de l'adaptateur (reconnexion → refetch complet)
+- [x] 11.2 Construire la vue d'ensemble multi-projets (cartes, tris, projet introuvable grisé avec « oublier »). Vérifier avec un test de composant et à la main avec 4 projets
+- [x] 11.3 Construire la synthèse projet (résumé, phase éditable, progression, santé, git). Vérifier qu'un changement de résumé par Claude s'affiche sans recharger la page
+- [x] 11.4 Construire la vue liste des tasks (hiérarchie, filtres, création et édition, deadline colorée, réordonnancement, suppression confirmée, gestion des conflits 409). Vérifier avec des tests de composant
+- [x] 11.5 Construire le kanban (drag & drop entre statuts et dans une colonne, saisie de raison pour « Bloqué »). Vérifier avec un test e2e Playwright du glisser vers « En cours » et vers « Bloqué »
+- [x] 11.6 Construire la vue activité (sessions, outil en cours avec chrono, flux filtrable, stats par période) et la vue mémoire (liste filtrable, détail, liens cliquables, liens cassés, contradictions, épinglage). Vérifier avec des tests de composant
+- [x] 11.7 Ajouter le thème clair/sombre (`prefers-color-scheme`) et les raccourcis clavier (`n`, changement de projet, liste/kanban, recherche). Vérifier avec un test e2e « `n` ouvre le formulaire avec le focus sur le titre »
 
 ## 12. Notifications
 
@@ -96,7 +96,7 @@
 
 ## 13. Intégration de bout en bout
 
-- [ ] 13.1 Test e2e scripté, exécuté sous Linux et sous Windows : `setup`, `init` dans un projet temporaire, puis rejeu des fixtures de hooks d'une session complète. Vérifier dans le dashboard (Playwright) la session active, l'outil en cours, le flux d'activité et une task créée via MCP qui apparaît en moins de 2 s
+- [x] 13.1 Test e2e scripté, exécuté sous Linux et sous Windows : `setup`, `init` dans un projet temporaire, puis rejeu des fixtures de hooks d'une session complète. Vérifier dans le dashboard (Playwright) la session active, l'outil en cours, le flux d'activité et une task créée via MCP qui apparaît en moins de 2 s
 - [ ] 13.2 Validation manuelle sur Omarchy (x86_64) avec une vraie session Claude Code sur deux projets : contexte injecté au démarrage, kanban mis à jour en direct, notification de deadline, `git status` du projet limité au fichier des tasks. Noter les résultats dans `docs/validation.md`
 - [ ] 13.3 Validation manuelle sous Windows 11 avec une vraie session Claude Code : mêmes points que 13.2, plus le démarrage du dashboard à l'ouverture de session (aucune console restante) et les notifications au nom d'Altium. Noter les résultats dans `docs/validation.md`
 
