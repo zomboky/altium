@@ -50,6 +50,26 @@ enum Command {
         #[arg(long)]
         renumber: bool,
     },
+    /// Lance le dashboard web local
+    Serve {
+        /// Port d'écoute (par défaut : `port` de config.toml, sinon 7420)
+        #[arg(long, value_name = "PORT")]
+        port: Option<u16>,
+        /// Sans console ni sortie, pour le démarrage automatique
+        #[arg(long)]
+        background: bool,
+    },
+    /// Ouvre le dashboard dans le navigateur, sur le projet courant
+    Open {
+        /// Port du dashboard
+        #[arg(long, value_name = "PORT")]
+        port: Option<u16>,
+    },
+    /// Démarre le dashboard avec la session utilisateur
+    Service {
+        #[command(subcommand)]
+        action: ServiceAction,
+    },
     /// Serveur MCP d'Altium, lancé par Claude Code
     #[command(hide = true)]
     Mcp,
@@ -61,6 +81,14 @@ enum Command {
     },
 }
 
+#[derive(Subcommand)]
+enum ServiceAction {
+    /// Démarre le dashboard à l'ouverture de session (et maintenant)
+    Install,
+    /// Ne démarre plus le dashboard à l'ouverture de session et l'arrête
+    Uninstall,
+}
+
 fn main() -> ExitCode {
     let result = match french::parse::<Cli>().command {
         Command::Init { name, force } => commands::init::run(name, force),
@@ -69,6 +97,12 @@ fn main() -> ExitCode {
         Command::Survey => commands::survey::run(),
         Command::Setup { uninstall } => commands::setup::run(uninstall),
         Command::Doctor { renumber } => commands::doctor::run(renumber),
+        Command::Serve { port, background } => commands::serve::run(port, background),
+        Command::Open { port } => commands::serve::open(port),
+        Command::Service { action } => match action {
+            ServiceAction::Install => commands::serve::install(),
+            ServiceAction::Uninstall => commands::serve::uninstall(),
+        },
         Command::Mcp => altium_mcp::serve(std::io::stdin().lock(), std::io::stdout().lock()).map_err(Into::into),
         Command::Hook { event } => {
             commands::hook::run(&event);

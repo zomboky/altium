@@ -2,12 +2,14 @@
 
 use std::path::{MAIN_SEPARATOR, Path};
 
-/// Default port of `altium serve`.
-pub const DEFAULT_PORT: u16 = 7420;
-
-/// Dashboard page of a project.
+/// Dashboard page of a project, on the configured port.
 pub fn dashboard_url(project_id: &str) -> String {
-    format!("http://127.0.0.1:{DEFAULT_PORT}/projects/{project_id}")
+    let port = altium_core::registry::Registry::for_user()
+        .ok()
+        .and_then(|r| altium_core::config::GlobalConfig::load(r.dir()).ok())
+        .map(|c| c.port())
+        .unwrap_or(altium_core::config::DEFAULT_PORT);
+    format!("http://127.0.0.1:{port}/projects/{project_id}")
 }
 
 /// `path` with the home directory shortened to `~`.

@@ -72,12 +72,12 @@
 
 ## 10. Serveur web
 
-- [ ] 10.1 Implémenter `altium serve` (axum, 127.0.0.1:7420, port configurable, échec explicite si le port est occupé) et le service des assets embarqués. Vérifier qu'une requête depuis une IP non loopback est impossible et qu'un port occupé produit une erreur claire
-- [ ] 10.2 Implémenter le middleware Host et Origin. Vérifier avec des tests : Host étranger → 403, POST avec Origin étranger → 403, même origine → OK
-- [ ] 10.3 Implémenter l'API REST : projets (liste, détail, oubli), status, tasks (CRUD, patch par champ, 409 en cas de conflit, réordonnancement), activité (flux filtrable, stats), mémoire (liste, détail, épinglage), git. Vérifier avec des tests d'API pour chaque route
-- [ ] 10.4 Implémenter le watcher `notify` (debounce, ajout et retrait dynamique des projets du registre) et le flux SSE `/api/stream` par portée, ainsi que le rafraîchissement git déclenché et périodique. Vérifier avec un test, sous Linux et sous Windows : écriture d'un fichier → événement SSE en moins de 2 s
+- [x] 10.1 Implémenter `altium serve` (axum, 127.0.0.1:7420, port configurable, échec explicite si le port est occupé) et le service des assets embarqués. Vérifier qu'une requête depuis une IP non loopback est impossible et qu'un port occupé produit une erreur claire
+- [x] 10.2 Implémenter le middleware Host et Origin. Vérifier avec des tests : Host étranger → 403, POST avec Origin étranger → 403, même origine → OK
+- [x] 10.3 Implémenter l'API REST : projets (liste, détail, oubli), status, tasks (CRUD, patch par champ, 409 en cas de conflit, réordonnancement), activité (flux filtrable, stats), mémoire (liste, détail, épinglage), git. Vérifier avec des tests d'API pour chaque route
+- [x] 10.4 Implémenter le watcher `notify` (debounce, ajout et retrait dynamique des projets du registre) et le flux SSE `/api/stream` par portée, ainsi que le rafraîchissement git déclenché et périodique. Vérifier avec un test, sous Linux et sous Windows : écriture d'un fichier → événement SSE en moins de 2 s
 - [ ] 10.5 Implémenter `altium open` (crate `opener`, sur le projet courant ou la vue d'ensemble) et `altium service install|uninstall` sous Linux (unit systemd user). Vérifier manuellement sur Omarchy que le service démarre à la connexion
-- [ ] 10.6 Sous Windows, implémenter `altium serve --background` (détachement de la console) et `altium service install|uninstall` avec la clé `Run` du compte et le raccourci du menu Démarrer qui déclare l'AUMID `Altium` (D9, D10), puis compléter le README. Vérifier manuellement qu'après une reconnexion le dashboard répond et qu'aucune fenêtre de console ne reste ouverte
+- [x] 10.6 Sous Windows, implémenter `altium serve --background` (détachement de la console) et `altium service install|uninstall` avec la clé `Run` du compte et le raccourci du menu Démarrer qui déclare l'AUMID `Altium` (D9, D10), puis compléter le README. Vérifier manuellement qu'après une reconnexion le dashboard répond et qu'aucune fenêtre de console ne reste ouverte
 
 ## 11. Front web
 
@@ -91,8 +91,8 @@
 
 ## 12. Notifications
 
-- [ ] 12.1 Implémenter le planificateur de deadlines (proche, dépassée), la notification de blocage par l'acteur `claude`, et le dédoublonnage persistant via `notified.json`. Vérifier avec des tests à horloge injectée et un faux émetteur
-- [ ] 12.2 Implémenter l'émission via `notify-rust` (urgence, scénario « reminder » sous Windows, action « Ouvrir » via `opener`), le rattrapage récapitulatif au démarrage, la configuration globale et par projet, et la dégradation propre sans service de notifications. Vérifier manuellement avec mako sur Omarchy, et dans le centre de notifications de Windows (notification au nom d'Altium)
+- [x] 12.1 Implémenter le planificateur de deadlines (proche, dépassée), la notification de blocage par l'acteur `claude`, et le dédoublonnage persistant via `notified.json`. Vérifier avec des tests à horloge injectée et un faux émetteur
+- [x] 12.2 Implémenter l'émission via `notify-rust` (urgence, scénario « reminder » sous Windows, action « Ouvrir » via `opener`), le rattrapage récapitulatif au démarrage, la configuration globale et par projet, et la dégradation propre sans service de notifications. Vérifier manuellement avec mako sur Omarchy, et dans le centre de notifications de Windows (notification au nom d'Altium)
 
 ## 13. Intégration de bout en bout
 
