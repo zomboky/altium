@@ -58,6 +58,9 @@ pub fn validate(node: &MemoryNode) -> Result<Vec<String>, String> {
     Ok(warnings)
 }
 
+/// Runtime file of the access log.
+pub const ACCESS_FILE: &str = "memory-access.json";
+
 /// Last access and load count of a node, kept in `runtime/memory-access.json`.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct Access {

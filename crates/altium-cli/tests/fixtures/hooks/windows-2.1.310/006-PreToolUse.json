@@ -1,0 +1,16 @@
+{
+ "session_id": "11111111-2222-3333-4444-555555555555",
+ "transcript_path": "C:\\Users\\me\\.claude\\projects\\demo\\11111111-2222-3333-4444-555555555555.jsonl",
+ "cwd": "{{PROJECT}}",
+ "prompt_id": "ccc1248e-c26f-426b-bfc7-59a28c342e4a",
+ "permission_mode": "acceptEdits",
+ "effort": {
+  "level": "medium"
+ },
+ "hook_event_name": "PreToolUse",
+ "tool_name": "Bash",
+ "tool_input": {
+  "command": "exit 3"
+ },
+ "tool_use_id": "toolu_01Jf2mYkisQAHPQYd5z6EHWB"
+}

@@ -42,7 +42,9 @@ dependencies = [
  "assert_cmd",
  "clap",
  "dirs",
+ "dunce",
  "predicates",
+ "serde_json",
  "tempfile",
 ]
 
@@ -55,6 +57,7 @@ dependencies = [
  "dunce",
  "ignore",
  "jsonschema",
+ "regex",
  "serde",
  "serde_json",
  "serde_yaml_ng",
@@ -62,6 +65,7 @@ dependencies = [
  "thiserror",
  "toml",
  "ulid",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

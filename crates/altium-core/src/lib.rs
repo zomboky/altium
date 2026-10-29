@@ -20,16 +20,23 @@ macro_rules! serde_via_str {
     };
 }
 
+pub mod activity;
 pub mod actor;
+pub mod config;
+pub mod context;
 pub mod error;
 pub mod git;
 pub mod gitignore;
 pub mod graph;
 pub mod health;
+pub mod log;
 pub mod memory;
+pub mod ops;
 pub mod patch;
+pub mod process;
 pub mod project;
 pub mod registry;
+pub mod render;
 pub mod store;
 pub mod task;
 pub mod tasks;

@@ -16,8 +16,11 @@ altium-server.workspace = true
 anyhow = "1.0.104"
 clap = { version = "4", features = ["derive"] }
 dirs = "7.0.0"
+dunce = "1.0.5"
+serde_json = "1.0.154"
 
 [dev-dependencies]
 assert_cmd = "2.2.2"
 predicates = "3.1.4"
+serde_json = "1.0.154"
 tempfile = "3.27.0"

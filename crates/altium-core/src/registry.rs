@@ -80,6 +80,11 @@ impl Registry {
         Registry { dir: dir.into() }
     }
 
+    /// The directory holding the registry and the global `config.toml`.
+    pub fn dir(&self) -> &Path {
+        &self.dir
+    }
+
     pub fn file(&self) -> PathBuf {
         self.dir.join(FILE_NAME)
     }

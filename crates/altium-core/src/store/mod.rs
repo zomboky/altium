@@ -218,6 +218,17 @@ impl Store {
         Ok(ids.iter().map(|id| self.memory_node(id)).collect())
     }
 
+    /// The memory graph of valid nodes, and the errors of invalid ones.
+    pub fn graph(&self) -> Result<(crate::graph::Graph, Vec<StoreError>)> {
+        let mut errors = Vec::new();
+        let nodes: Vec<MemoryNode> = self
+            .memory_nodes()?
+            .into_iter()
+            .filter_map(|node| node.map_err(|e| errors.push(e)).ok())
+            .collect();
+        Ok((crate::graph::Graph::new(nodes), errors))
+    }
+
     pub fn snapshot(&self) -> Result<Snapshot> {
         Ok(Snapshot {
             project: self.project()?,

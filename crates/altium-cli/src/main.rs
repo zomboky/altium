@@ -1,6 +1,8 @@
+mod claude;
 mod commands;
 mod display;
 mod french;
+mod http;
 
 use std::process::ExitCode;
 
@@ -34,6 +36,24 @@ enum Command {
         #[arg(value_name = "PROJET")]
         target: Option<String>,
     },
+    /// Installe les hooks et le serveur MCP d'Altium dans Claude Code
+    Setup {
+        /// Retire ce qu'Altium a ajouté à la configuration de Claude Code
+        #[arg(long)]
+        uninstall: bool,
+    },
+    /// Vérifie l'intégration avec Claude Code, le dashboard et le projet courant
+    Doctor {
+        /// Renumérote les tasks dont l'identifiant est en double
+        #[arg(long)]
+        renumber: bool,
+    },
+    /// Point d'entrée des hooks de Claude Code
+    #[command(hide = true)]
+    Hook {
+        #[arg(value_name = "ÉVÉNEMENT")]
+        event: String,
+    },
 }
 
 fn main() -> ExitCode {
@@ -41,6 +61,12 @@ fn main() -> ExitCode {
         Command::Init { name, force } => commands::init::run(name, force),
         Command::List => commands::list::run(),
         Command::Forget { target } => commands::forget::run(target),
+        Command::Setup { uninstall } => commands::setup::run(uninstall),
+        Command::Doctor { renumber } => commands::doctor::run(renumber),
+        Command::Hook { event } => {
+            commands::hook::run(&event);
+            Ok(())
+        }
     };
     match result {
         Ok(()) => ExitCode::SUCCESS,

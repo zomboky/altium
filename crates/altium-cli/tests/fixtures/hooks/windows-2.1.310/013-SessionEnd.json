@@ -1,0 +1,8 @@
+{
+ "session_id": "11111111-2222-3333-4444-555555555555",
+ "transcript_path": "C:\\Users\\me\\.claude\\projects\\demo\\11111111-2222-3333-4444-555555555555.jsonl",
+ "cwd": "{{PROJECT}}",
+ "prompt_id": "ccc1248e-c26f-426b-bfc7-59a28c342e4a",
+ "hook_event_name": "SessionEnd",
+ "reason": "other"
+}
