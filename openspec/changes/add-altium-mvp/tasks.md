@@ -27,24 +27,24 @@
 
 ## 4. Tasks (altium-core)
 
-- [ ] 4.1 Implémenter le cycle de vie des tasks : ids `T-<n>`, statuts, raison obligatoire pour `blocked`, dates de fin. Vérifier avec des tests unitaires des scénarios « task minimale » et « blocage sans raison »
-- [ ] 4.2 Implémenter la hiérarchie (anti-cycle, progression d'une parente, refus de clôture avec sous-tâches ouvertes sauf forçage) et la suppression en cascade. Vérifier avec des tests unitaires
-- [ ] 4.3 Implémenter les deadlines (fuseau local, en retard, proche, fenêtre configurable) et les filtres (tag, statut, priorité, état de deadline). Vérifier avec des tests à horloge injectée
-- [ ] 4.4 Implémenter l'ordre de priorité commun et la position manuelle (spec task-management). Vérifier avec un test de tri qui couvre doing > priorité > deadline > position > ancienneté, et les blocked listées à part
+- [x] 4.1 Implémenter le cycle de vie des tasks : ids `T-<n>`, statuts, raison obligatoire pour `blocked`, dates de fin. Vérifier avec des tests unitaires des scénarios « task minimale » et « blocage sans raison »
+- [x] 4.2 Implémenter la hiérarchie (anti-cycle, progression d'une parente, refus de clôture avec sous-tâches ouvertes sauf forçage) et la suppression en cascade. Vérifier avec des tests unitaires
+- [x] 4.3 Implémenter les deadlines (fuseau local, en retard, proche, fenêtre configurable) et les filtres (tag, statut, priorité, état de deadline). Vérifier avec des tests à horloge injectée
+- [x] 4.4 Implémenter l'ordre de priorité commun et la position manuelle (spec task-management). Vérifier avec un test de tri qui couvre doing > priorité > deadline > position > ancienneté, et les blocked listées à part
 
 ## 5. Graphe de mémoire (altium-core)
 
-- [ ] 5.1 Implémenter le CRUD des nœuds avec validation (slug, type, description ≤ 120 caractères, suggestion de découpage au-delà de 2 000 tokens). Vérifier avec des tests unitaires
-- [ ] 5.2 Implémenter les liens typés vers les nœuds, tasks, fichiers et URL, avec l'index des liens entrants et la détection des liens cassés. Vérifier avec des tests (fichier supprimé → lien cassé)
-- [ ] 5.3 Implémenter l'index compact (sans les nœuds remplacés) et son cache dans `runtime/`. Vérifier avec le test « 80 nœuds dont 5 remplacés → 75 lignes »
-- [ ] 5.4 Implémenter `get(ids, follow, depth)` avec la sémantique des liens (voisins en ligne d'index, redirection `equivalent_to`, obsolescence `supersedes`, avertissement `contradicts`). Vérifier avec un test par scénario de la spec memory-graph
-- [ ] 5.5 Implémenter la recherche (texte, type, tag, chemin référencé) et le suivi des accès (`memory-access.json`), avec un score épinglé > récence × fréquence. Vérifier avec des tests de classement
-- [ ] 5.6 Ajouter `memory.lang` (défaut `en`) à la config projet et produire la ligne de consigne de langue pour le contexte et les instructions MCP (D11). Vérifier avec un test : passer de `en` à `fr` change la consigne sans modifier aucun fichier de `memory/`
+- [x] 5.1 Implémenter le CRUD des nœuds avec validation (slug, type, description ≤ 120 caractères, suggestion de découpage au-delà de 2 000 tokens). Vérifier avec des tests unitaires
+- [x] 5.2 Implémenter les liens typés vers les nœuds, tasks, fichiers et URL, avec l'index des liens entrants et la détection des liens cassés. Vérifier avec des tests (fichier supprimé → lien cassé)
+- [x] 5.3 Implémenter l'index compact (sans les nœuds remplacés) et son cache dans `runtime/`. Vérifier avec le test « 80 nœuds dont 5 remplacés → 75 lignes »
+- [x] 5.4 Implémenter `get(ids, follow, depth)` avec la sémantique des liens (voisins en ligne d'index, redirection `equivalent_to`, obsolescence `supersedes`, avertissement `contradicts`). Vérifier avec un test par scénario de la spec memory-graph
+- [x] 5.5 Implémenter la recherche (texte, type, tag, chemin référencé) et le suivi des accès (`memory-access.json`), avec un score épinglé > récence × fréquence. Vérifier avec des tests de classement
+- [x] 5.6 Ajouter `memory.lang` (défaut `en`) à la config projet et produire la ligne de consigne de langue pour le contexte et les instructions MCP (D11). Vérifier avec un test : passer de `en` à `fr` change la consigne sans modifier aucun fichier de `memory/`
 
 ## 6. État du projet (altium-core)
 
-- [ ] 6.1 Implémenter le résumé (≤ 600 caractères, auteur et date), les phases configurables, la progression et l'indicateur de santé. Vérifier avec le test « 10 tasks → 4/9 (44 %), 1 en retard »
-- [ ] 6.2 Implémenter la lecture git via la commande `git` (branche, fichiers modifiés et non suivis, ahead/behind, 5 derniers commits), avec timeout, absence de section hors dépôt et, sous Windows, `CREATE_NO_WINDOW` (D8). Vérifier avec des tests sur des dépôts temporaires, sous Linux et sous Windows
+- [x] 6.1 Implémenter le résumé (≤ 600 caractères, auteur et date), les phases configurables, la progression et l'indicateur de santé. Vérifier avec le test « 10 tasks → 4/9 (44 %), 1 en retard »
+- [x] 6.2 Implémenter la lecture git via la commande `git` (branche, fichiers modifiés et non suivis, ahead/behind, 5 derniers commits), avec timeout, absence de section hors dépôt et, sous Windows, `CREATE_NO_WINDOW` (D8). Vérifier avec des tests sur des dépôts temporaires, sous Linux et sous Windows
 
 ## 7. Hooks et activité
 

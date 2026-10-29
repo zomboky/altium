@@ -16,6 +16,9 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
+use serde::Serialize;
+use serde::de::DeserializeOwned;
+
 use crate::error::{Result, StoreError};
 use crate::memory::{self, MemoryNode};
 use crate::project::{self, CURRENT_SCHEMA, Project, ProjectStatus};
@@ -25,11 +28,11 @@ use crate::task::{self, Task};
 pub const DIR_NAME: &str = ".altium";
 
 pub const PROJECT_FILE: &str = "project.toml";
-const STATUS_FILE: &str = "status.json";
-const TASKS_FILE: &str = "tasks.jsonl";
-const MEMORY_DIR: &str = "memory";
+pub const STATUS_FILE: &str = "status.json";
+pub const TASKS_FILE: &str = "tasks.jsonl";
+pub const MEMORY_DIR: &str = "memory";
 const GITIGNORE: &str = ".gitignore";
-const RUNTIME_DIR: &str = "runtime";
+pub const RUNTIME_DIR: &str = "runtime";
 const LOCK_FILE: &str = "runtime/lock";
 const TMP_DIR: &str = "runtime/tmp";
 
@@ -264,6 +267,65 @@ impl Store {
         self.ensure_writable()?;
         let name = memory_file(&node.id)?;
         self.with_lock(|| self.write(&name, memory::render_node(node).as_bytes()))
+    }
+
+    /// Deletes a memory node; a missing node is not an error.
+    pub fn delete_memory_node(&self, id: &str) -> Result<()> {
+        self.ensure_writable()?;
+        let path = self.dir.join(memory_file(id)?);
+        self.with_lock(|| match fs::remove_file(&path) {
+            Err(e) if e.kind() != io::ErrorKind::NotFound => Err(StoreError::io(&path)(e)),
+            _ => Ok(()),
+        })
+    }
+
+    /// Like [`Store::update_tasks`], for `project.toml`.
+    pub fn update_project<T, E: From<StoreError>>(&self, f: impl FnOnce(&mut Project) -> Result<T, E>) -> Result<T, E> {
+        self.ensure_writable()?;
+        self.with_lock(|| {
+            let mut project = self.project()?;
+            let before = project.clone();
+            let value = f(&mut project)?;
+            if project != before {
+                self.write(PROJECT_FILE, project::render_project(&project).as_bytes())?;
+            }
+            Ok(value)
+        })
+    }
+
+    /// A file of `runtime/`, which holds local data that is not versioned.
+    pub fn runtime_path(&self, name: &str) -> PathBuf {
+        self.dir.join(RUNTIME_DIR).join(name)
+    }
+
+    /// Reads a JSON file of `runtime/`. A missing or invalid file reads as
+    /// the default value: runtime data can always be rebuilt.
+    pub fn read_runtime<T: DeserializeOwned + Default>(&self, name: &str) -> T {
+        fs::read_to_string(self.runtime_path(name))
+            .ok()
+            .and_then(|text| serde_json::from_str(&text).ok())
+            .unwrap_or_default()
+    }
+
+    /// Updates a JSON file of `runtime/` under the project lock. Runtime data
+    /// is not part of the schema, so this works on read-only projects too.
+    pub fn update_runtime<T, R>(&self, name: &str, f: impl FnOnce(&mut T) -> R) -> Result<R>
+    where
+        T: DeserializeOwned + Serialize + Default,
+    {
+        self.with_lock(|| {
+            let mut value: T = self.read_runtime(name);
+            let result = f(&mut value);
+            let text = serde_json::to_string(&value).expect("runtime data always serializes");
+            let path = self.runtime_path(name);
+            if fs::read_to_string(&path).ok().as_deref() != Some(text.as_str()) {
+                if let Some(parent) = path.parent() {
+                    fs::create_dir_all(parent).map_err(StoreError::io(parent))?;
+                }
+                atomic::write(&path, &self.dir.join(TMP_DIR), text.as_bytes())?;
+            }
+            Ok(result)
+        })
     }
 
     fn ensure_writable(&self) -> Result<()> {

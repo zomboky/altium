@@ -60,6 +60,51 @@ pub struct ProjectConfig {
     /// Desktop notifications for this project.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub notifications: Option<bool>,
+    #[serde(default, skip_serializing_if = "is_default")]
+    pub memory: MemoryConfig,
+}
+
+/// `[config.memory]` of `project.toml`.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct MemoryConfig {
+    /// Language Claude writes memory nodes in (`en` when unset).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lang: Option<String>,
+}
+
+/// Default project phases, in their usual order.
+pub const DEFAULT_PHASES: [&str; 7] = [
+    "idea",
+    "exploration",
+    "development",
+    "testing",
+    "maintenance",
+    "paused",
+    "done",
+];
+
+/// Longest project summary, in characters.
+pub const MAX_SUMMARY_CHARS: usize = 600;
+
+impl ProjectConfig {
+    pub fn memory_lang(&self) -> &str {
+        self.memory.lang.as_deref().unwrap_or(crate::graph::DEFAULT_LANG)
+    }
+
+    pub fn phases(&self) -> Vec<String> {
+        match &self.phases {
+            Some(phases) if !phases.is_empty() => phases.clone(),
+            _ => DEFAULT_PHASES.iter().map(|p| (*p).to_owned()).collect(),
+        }
+    }
+
+    pub fn context_budget(&self) -> usize {
+        self.context_budget.map_or(2000, |b| b as usize)
+    }
+
+    pub fn near_hours(&self) -> u32 {
+        self.near_deadline_hours.unwrap_or(crate::tasks::DEFAULT_NEAR_HOURS)
+    }
 }
 
 /// `status.json`: where the project stands, kept up to date by Claude and the user.
@@ -144,6 +189,34 @@ mod tests {
         let text = "schema = 1\nid = \"x\"\nname = \nsummary = 3\n";
         let err = parse_project(text, Path::new("project.toml")).unwrap_err();
         assert!(matches!(err, StoreError::Invalid { line: Some(3), .. }), "{err}");
+    }
+
+    #[test]
+    fn memory_lang_lives_under_config() {
+        let mut p = project();
+        assert_eq!(p.config.memory_lang(), "en");
+        p.config.memory.lang = Some("fr".into());
+        let text = render_project(&p);
+        assert!(
+            text.contains(
+                "[config.memory]
+lang = \"fr\""
+            ),
+            "{text}"
+        );
+        let dotted = text.replace(
+            "[config.memory]
+lang",
+            "[config]
+memory.lang",
+        );
+        assert_eq!(
+            parse_project(&dotted, Path::new("project.toml"))
+                .unwrap()
+                .config
+                .memory_lang(),
+            "fr"
+        );
     }
 
     #[test]

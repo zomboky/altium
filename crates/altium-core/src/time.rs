@@ -3,7 +3,7 @@
 use std::fmt;
 use std::str::FromStr;
 
-use chrono::{DateTime, NaiveDate, NaiveDateTime, NaiveTime, SubsecRound, Utc};
+use chrono::{DateTime, FixedOffset, Local, NaiveDate, NaiveDateTime, NaiveTime, SubsecRound, TimeZone, Utc};
 
 /// A UTC instant with second precision, stored as `2026-10-28T14:55:00Z`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -77,6 +77,61 @@ impl FromStr for Deadline {
 
 serde_via_str!(Deadline);
 
+impl Deadline {
+    /// The instant the deadline falls at in `tz`: its time of day, or the
+    /// last second of its day when it has none.
+    pub fn instant<Tz: TimeZone>(&self, tz: &Tz) -> DateTime<Utc> {
+        let time = self
+            .time
+            .unwrap_or(NaiveTime::from_hms_opt(23, 59, 59).expect("valid time"));
+        let local = self.date.and_time(time);
+        // A time skipped by a DST change falls an hour later.
+        tz.from_local_datetime(&local)
+            .earliest()
+            .or_else(|| tz.from_local_datetime(&(local + chrono::Duration::hours(1))).earliest())
+            .map(|at| at.with_timezone(&Utc))
+            .unwrap_or_else(|| local.and_utc())
+    }
+}
+
+/// The current instant and the time zone deadlines are in. Injected so that
+/// deadline logic can be tested at a fixed time.
+#[derive(Debug, Clone, Copy)]
+pub struct Clock {
+    pub now: DateTime<Utc>,
+    /// `None` is the system time zone.
+    pub offset: Option<FixedOffset>,
+}
+
+impl Clock {
+    /// The system clock and time zone.
+    pub fn system() -> Clock {
+        Clock {
+            now: Utc::now(),
+            offset: None,
+        }
+    }
+
+    /// A fixed instant, with deadlines in UTC.
+    pub fn fixed(now: DateTime<Utc>) -> Clock {
+        Clock {
+            now,
+            offset: Some(FixedOffset::east_opt(0).expect("valid offset")),
+        }
+    }
+
+    pub fn deadline(&self, deadline: Deadline) -> DateTime<Utc> {
+        match self.offset {
+            Some(offset) => deadline.instant(&offset),
+            None => deadline.instant(&Local),
+        }
+    }
+
+    pub fn timestamp(&self) -> Timestamp {
+        Timestamp::from_datetime(self.now)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -93,5 +148,15 @@ mod tests {
             assert_eq!(text.parse::<Deadline>().unwrap().to_string(), text);
         }
         assert!("02/11/2026".parse::<Deadline>().is_err());
+    }
+
+    #[test]
+    fn deadline_without_time_ends_with_its_day() {
+        let clock = Clock::fixed(Utc::now());
+        let day: Deadline = "2026-11-02".parse().unwrap();
+        assert_eq!(clock.deadline(day).to_rfc3339(), "2026-11-02T23:59:59+00:00");
+        let at: Deadline = "2026-11-02T18:00".parse().unwrap();
+        let paris = FixedOffset::east_opt(3600).unwrap();
+        assert_eq!(at.instant(&paris).to_rfc3339(), "2026-11-02T17:00:00+00:00");
     }
 }

@@ -22,13 +22,17 @@ macro_rules! serde_via_str {
 
 pub mod actor;
 pub mod error;
+pub mod git;
 pub mod gitignore;
+pub mod graph;
+pub mod health;
 pub mod memory;
 pub mod patch;
 pub mod project;
 pub mod registry;
 pub mod store;
 pub mod task;
+pub mod tasks;
 pub mod time;
 
 pub use error::{Result, StoreError};
