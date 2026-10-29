@@ -73,6 +73,9 @@ name = "altium-mcp"
 version = "0.1.0"
 dependencies = [
  "altium-core",
+ "serde",
+ "serde_json",
+ "tempfile",
 ]
 
 [[package]]

@@ -36,6 +36,8 @@ enum Command {
         #[arg(value_name = "PROJET")]
         target: Option<String>,
     },
+    /// Fait faire par Claude l'état des lieux d'un projet existant
+    Survey,
     /// Installe les hooks et le serveur MCP d'Altium dans Claude Code
     Setup {
         /// Retire ce qu'Altium a ajouté à la configuration de Claude Code
@@ -48,6 +50,9 @@ enum Command {
         #[arg(long)]
         renumber: bool,
     },
+    /// Serveur MCP d'Altium, lancé par Claude Code
+    #[command(hide = true)]
+    Mcp,
     /// Point d'entrée des hooks de Claude Code
     #[command(hide = true)]
     Hook {
@@ -61,8 +66,10 @@ fn main() -> ExitCode {
         Command::Init { name, force } => commands::init::run(name, force),
         Command::List => commands::list::run(),
         Command::Forget { target } => commands::forget::run(target),
+        Command::Survey => commands::survey::run(),
         Command::Setup { uninstall } => commands::setup::run(uninstall),
         Command::Doctor { renumber } => commands::doctor::run(renumber),
+        Command::Mcp => altium_mcp::serve(std::io::stdin().lock(), std::io::stdout().lock()).map_err(Into::into),
         Command::Hook { event } => {
             commands::hook::run(&event);
             Ok(())

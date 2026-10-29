@@ -264,3 +264,34 @@ fn doctor_reports_a_missing_hook() {
     assert!(stdout.contains("hooks manquants : PostToolUse"), "{stdout}");
     assert!(stdout.contains("altium setup"));
 }
+
+#[test]
+fn init_offers_no_survey_outside_a_terminal() {
+    let env = Env::new();
+    let root = env.path("meudon");
+    fs::write(root.join("README.md"), "# Meudon\n").unwrap();
+    let output = env.altium(&root, &["init"]).output().unwrap();
+    assert!(output.status.success());
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(!stdout.contains("état des lieux"), "{stdout}");
+}
+
+#[test]
+fn survey_launches_nothing_without_claude_or_setup() {
+    let env = Env::new();
+    let root = env.project("meudon");
+    let output = env.altium(&root, &["survey"]).output().unwrap();
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("commande claude introuvable"));
+
+    // A `claude` that exists, but Altium is not set up and nobody can answer.
+    let output = env
+        .altium(&root, &["survey"])
+        .env("ALTIUM_CLAUDE", env!("CARGO_BIN_EXE_altium"))
+        .stdin(Stdio::null())
+        .output()
+        .unwrap();
+    assert!(!output.status.success());
+    assert!(String::from_utf8_lossy(&output.stderr).contains("état des lieux annulé"));
+    assert!(!root.join(".altium/runtime/survey/sessions.md").exists());
+}

@@ -91,10 +91,7 @@ pub fn run(renumber: bool) -> Result<()> {
             "serveur",
             format!("le port {port} répond {status} : un autre programme ?"),
         ),
-        Err(_) => report.warn(
-            "serveur",
-            "arrêté ; lance `altium serve` ou `altium service install`",
-        ),
+        Err(_) => report.warn("serveur", "arrêté ; lance `altium serve` ou `altium service install`"),
     }
 
     println!();

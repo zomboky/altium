@@ -8,6 +8,7 @@ use altium_core::gitignore::{self, Tracking};
 use altium_core::project::Project;
 use altium_core::registry::{Registered, Registry};
 use altium_core::store::{DIR_NAME, PROJECT_FILE, find_root};
+use altium_core::survey::{self, SurveyState};
 use anyhow::{Context, Result, bail};
 
 use crate::display;
@@ -26,7 +27,28 @@ pub fn run(name: Option<String>, force: bool) -> Result<()> {
         create(&cwd, &registry, name, force)?;
     }
     track_in_git(&cwd);
-    Ok(())
+    offer_survey(&cwd)
+}
+
+/// Offers a survey by Claude when the folder already holds a project that
+/// was never surveyed. Never launches anything without a yes.
+fn offer_survey(root: &Path) -> Result<()> {
+    if !super::survey::should_offer(root) {
+        return Ok(());
+    }
+    let surveyed = Store::open(root)
+        .map(|store| store.read_runtime::<SurveyState>(survey::STATE_FILE).last.is_some())
+        .unwrap_or(true);
+    if surveyed {
+        return Ok(());
+    }
+    println!();
+    if super::survey::ask("Ce dossier contient déjà des fichiers. Lancer un état des lieux avec Claude ?")? {
+        super::survey::run()
+    } else {
+        println!("Tu pourras le lancer plus tard avec `altium survey`.");
+        Ok(())
+    }
 }
 
 fn create(cwd: &Path, registry: &Registry, name: Option<String>, force: bool) -> Result<()> {

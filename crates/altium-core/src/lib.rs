@@ -38,6 +38,7 @@ pub mod project;
 pub mod registry;
 pub mod render;
 pub mod store;
+pub mod survey;
 pub mod task;
 pub mod tasks;
 pub mod time;
