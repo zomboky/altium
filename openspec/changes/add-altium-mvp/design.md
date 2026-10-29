@@ -29,7 +29,7 @@
 crates/
   altium-core/    modèles, store .altium/, registre, ordre des tasks, graphe mémoire,
                   construction du contexte, stats, git (via commande)
-  altium-mcp/     serveur MCP stdio (crate `rmcp`), traduit outils ↔ core
+  altium-mcp/     serveur MCP stdio (JSON-RPC écrit à la main), traduit outils ↔ core
   altium-server/  axum + tokio : API REST, flux SSE, watcher, notifications, assets embarqués
   altium-cli/     binaire `altium` (clap) : init, list, forget, setup, doctor, hook, mcp,
                   serve, open, service
@@ -44,7 +44,8 @@ web/              Svelte 5 + Vite + TypeScript, build statique embarqué (rust-e
 
 - Le bundle est léger, la réactivité simple pour les mises à jour SSE, et le framework s'intègre bien à Tauri.
 - **Alternative** : React, avec un écosystème plus gros mais un bundle et une verbosité plus importants. Ce choix n'a pas d'impact sur les specs et peut être revu avant de coder le front.
-- Le drag & drop du kanban passe par `svelte-dnd-action`, qui est accessible au clavier. Le thème repose sur des variables CSS et `prefers-color-scheme`.
+- Le drag & drop du kanban utilise l'API HTML5 native, sans dépendance. Au clavier, la vue liste offre les mêmes changements (statut, priorité, ordre). Le thème repose sur des variables CSS et `prefers-color-scheme`.
+- Les vues ne parlent au serveur qu'à travers une interface `Api` (`web/src/lib/api/`), ce qui permet de les tester contre une fausse API (Vitest). Les tests de bout en bout (Playwright) lancent le vrai binaire ; sous Windows ils utilisent le Edge installé, sans téléchargement de navigateur.
 
 ### D3. Format de `.altium/`
 
@@ -67,6 +68,7 @@ web/              Svelte 5 + Vite + TypeScript, build statique embarqué (rust-e
 - **`tasks.jsonl` plutôt qu'un gros JSON ou TOML** : une ligne par task donne un diff git d'une ligne par modification (spec altium-store, « Diff minimal »). C'est compact et lisible.
 - **Mémoire en `.md` avec frontmatter** : c'est le même modèle que les skills Claude (métadonnées légères en tête, corps chargé à la demande). C'est éditable à la main et diffable. L'index est **dérivé** (frontmatter seulement) et mis en cache dans `runtime/`, donc jamais commité.
 - **Données « bruyantes » dans `runtime/`** : accès mémoire, sessions, notifications et journal changent tout le temps. Les commiter polluerait git.
+- **Historique des modifications** : chaque écriture de task, de statut ou de mémoire ajoute une ligne `{at, by, target, action, fields}` à `runtime/history.jsonl`. Il sert à la traçabilité des changements faits par Claude (affichée dans le formulaire d'une task) et à la notification « bloquée par Claude ». Il est local, comme le reste de `runtime/` : git garde déjà l'historique partagé.
 - **Exemple de task** : `{"id":"T-12","pri":"P1","st":"todo","title":"…","due":"2026-11-02","tags":["api"],"parent":"T-3","pos":3,"rev":4,"ca":"…","ua":"…"}`. Les clés sont courtes et documentées dans un schéma JSON livré avec le binaire.
 - **Alternatives écartées** : SQLite (binaire, non diffable, illisible par Claude avec `cat`) et un fichier unique par task (trop de fichiers, `git status` bruyant).
 - **Identifiants** : un ULID pour le projet, `T-<n>` incrémental pour les tasks (max + 1, sous verrou), et des slugs choisis par Claude pour la mémoire (validés en `[a-z0-9-]`, unicité vérifiée).
@@ -81,7 +83,7 @@ web/              Svelte 5 + Vite + TypeScript, build statique embarqué (rust-e
 
 ### D5. Hooks Claude Code
 
-- Les événements enregistrés sont `SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `Stop` et `SessionEnd`. Chacun est un hook en **forme exec** : `"command": "<chemin absolu de altium>"` et `"args": ["hook", "<event>"]`. Claude Code lance alors le binaire directement, sans shell : pas de dépendance au PATH des hooks, pas de souci de guillemets avec un chemin qui contient des espaces ou des accents, et pas de shell à démarrer à chaque événement. C'est indispensable sous Windows, où la forme shell passe par Git Bash, ou par PowerShell quand Git Bash est absent.
+- Les événements enregistrés sont `SessionStart`, `UserPromptSubmit`, `PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `Stop` et `SessionEnd`. Claude Code 2.1 signale un outil en échec par `PostToolUseFailure` (champ `error`) et non par `PostToolUse` : sans lui, un appel en échec resterait « en cours ». Chacun est un hook en **forme exec** : `"command": "<chemin absolu de altium>"` et `"args": ["hook", "<event>"]`. Claude Code lance alors le binaire directement, sans shell : pas de dépendance au PATH des hooks, pas de souci de guillemets avec un chemin qui contient des espaces ou des accents, et pas de shell à démarrer à chaque événement. C'est indispensable sous Windows, où la forme shell passe par Git Bash, ou par PowerShell quand Git Bash est absent.
 - **Chemin rapide** : parse du stdin, puis remontée depuis `cwd` jusqu'à `.altium/`, puis ajout d'une ligne au journal, puis `exit 0`. La sortie est vide, sauf pour `SessionStart`.
 - **`SessionStart`** imprime le JSON `hookSpecificOutput.additionalContext` produit par `core::context::build(project, budget)`. Il enregistre aussi la session et le PID de l'ancêtre `claude` (voir D6). Sous Linux, les ancêtres sont lus dans `/proc`. Sous Windows, ils viennent d'un instantané des processus (`CreateToolhelp32Snapshot`, crate `windows-sys`), et l'ancêtre est `claude.exe` (installation native) ou `node.exe` (installation npm). Windows réutilise les PID : un ancêtre n'est retenu que s'il a démarré avant son enfant.
 - Pre et Post sont appariés par `tool_use_id` pour obtenir la durée et l'état « en cours ». Le résultat succès/échec est déduit du payload `PostToolUse` (champ d'erreur, ou code de sortie pour Bash).
@@ -91,7 +93,7 @@ web/              Svelte 5 + Vite + TypeScript, build statique embarqué (rust-e
 
 ### D6. Serveur MCP
 
-- `altium mcp` utilise `rmcp` en transport stdio. Il est enregistré au niveau user via `claude mcp add --scope user altium -- <abs>/altium mcp`. Si la CLI `claude` est absente, il est écrit directement dans la config user.
+- `altium mcp` parle JSON-RPC 2.0 sur stdio, un message par ligne, avec un petit serveur écrit à la main plutôt que `rmcp` : le protocole utilisé (`initialize`, `tools/list`, `tools/call`) est minuscule, et cela évite un runtime async et une pile de dépendances dans un processus lancé à chaque session. Il est enregistré au niveau user via `claude mcp add --scope user altium -- <abs>/altium mcp`. Si la CLI `claude` est absente, il est écrit directement dans la config user.
 - **Projet** : il est résolu depuis le `cwd` du processus, ou depuis les *roots* MCP si le client les fournit. Hors projet, l'outil renvoie une erreur qui suggère `altium init`.
 - **Session** : le serveur MCP et les hooks ont le même processus ancêtre `claude`. Le hook `SessionStart` enregistre (pid ancêtre → session_id) dans `sessions.json`, et le MCP retrouve sa session en remontant ses propres ancêtres. Si ça échoue, l'acteur est `claude` avec une session inconnue.
 - **Outils** (préfixés automatiquement `mcp__altium__`) : `status_get`, `status_set`, `task_list`, `task_get`, `task_create`, `task_update`, `memory_index`, `memory_get(ids, follow?, depth?)`, `memory_search`, `memory_put`, `memory_link`, `memory_unlink`. Il n'y a pas d'outil de suppression de task (spec task-management).
@@ -117,7 +119,7 @@ web/              Svelte 5 + Vite + TypeScript, build statique embarqué (rust-e
 
 - Une tâche tokio passe toutes les 60 s sur les tasks de tous les projets. Le passage à `blocked` par l'acteur `claude` est aussi détecté à chaque changement de tasks vu par le watcher.
 - L'envoi passe par la crate `notify-rust`, sans dépendance C : D-Bus freedesktop sous Linux (compatible mako), notifications toast WinRT sous Windows. L'action « Ouvrir » ouvre l'URL de la task avec la crate `opener` (`xdg-open` sous Linux, `ShellExecuteW` sous Windows).
-- **Sous Windows** : l'urgence élevée devient le scénario « reminder », qui garde la notification affichée jusqu'à ce que l'utilisateur la ferme. « Ouvrir » est un bouton de la notification, et un clic sur la notification fait de même tant que le serveur tourne. Sans identifiant d'application (AppUserModelID), Windows attribue la notification à « Windows PowerShell » : `altium service install` crée donc un raccourci du menu Démarrer qui déclare l'AUMID `Altium`.
+- **Sous Windows** : l'urgence élevée devient le scénario « reminder », qui garde la notification affichée jusqu'à ce que l'utilisateur la ferme. `notify-rust` ne gère pas les boutons d'action sous Windows : la notification n'a pas de bouton « Ouvrir », et `altium open` reste le chemin vers le dashboard. Sans identifiant d'application (AppUserModelID) enregistré, Windows attribue la notification à « Windows PowerShell » : `altium service install` déclare donc l'AUMID `Altium` par la clé `HKCU\Software\Classes\AppUserModelId\Altium` (valeur `DisplayName`), plus simple qu'un raccourci du menu Démarrer et sans droits administrateur.
 - Le dédoublonnage repose sur la clé `(task_id, kind, due|statut)` dans `runtime/notified.json`. Ainsi, une deadline modifiée donne une nouvelle clé et donc une nouvelle notification.
 - **Rattrapage au démarrage** : une seule notification récapitulative par projet pour les deadlines franchies pendant l'arrêt.
 
@@ -133,7 +135,7 @@ web/              Svelte 5 + Vite + TypeScript, build statique embarqué (rust-e
 - La variable d'environnement `ALTIUM_CONFIG_DIR` remplace le dossier du registre et de la config, sur les deux systèmes. Les tests s'en servent : sous Windows, `XDG_CONFIG_HOME` et `HOME` ne déplacent pas `%APPDATA%`.
 - `dirs::state_dir()` n'existe pas sous Windows : le log va dans `dirs::data_local_dir()`, un dossier local qui ne suit pas le profil itinérant.
 - **Service Linux** : `altium service install` écrit l'unit puis lance `systemctl --user enable --now`.
-- **Service Windows** : `altium service install` inscrit `"<chemin>\altium.exe" serve --background` dans la clé `Run` du compte, sans droits administrateur, puis lance le serveur. Au démarrage, `serve --background` se détache aussitôt de sa console (`FreeConsole`) : une fenêtre de console, ou un onglet Windows Terminal, apparaît brièvement à l'ouverture de session. `altium service uninstall` retire la valeur et arrête le serveur. Écartés : un second exécutable sans console (`altiumw.exe`), qui romprait le binaire unique (D1), et la tâche planifiée, plus lourde à mettre en place.
+- **Service Windows** : `altium service install` inscrit `"<chemin>\altium.exe" serve --background` dans la clé `Run` du compte, sans droits administrateur, puis lance le serveur. Au démarrage, `serve --background` se détache aussitôt de sa console (`FreeConsole`) : une fenêtre de console, ou un onglet Windows Terminal, apparaît brièvement à l'ouverture de session. `altium service uninstall` retire la valeur et arrête le serveur par `POST /api/shutdown` (soumis aux mêmes contrôles Host et Origin que les autres écritures). Écartés : un second exécutable sans console (`altiumw.exe`), qui romprait le binaire unique (D1), et la tâche planifiée, plus lourde à mettre en place.
 - **Config Claude** : comme Claude Code, `altium setup` utilise `CLAUDE_CONFIG_DIR` à la place de `~/.claude` quand elle est définie. Une sauvegarde `settings.json.altium-bak-<ts>` est faite avant chaque écriture. Les entrées Altium sont reconnues à leur commande (binaire `altium` ou `altium.exe`) suivie de l'argument `hook`.
 
 ### D11. Langues
@@ -171,7 +173,7 @@ web/              Svelte 5 + Vite + TypeScript, build statique embarqué (rust-e
 - [Une console clignote à l'ouverture de session Windows, car `altium.exe` est un programme console] → Accepté pour garder un binaire unique. Un lanceur sans console pourra s'ajouter plus tard sans changer les specs.
 - [Le format des conversations Claude Code (`*.jsonl`) n'est pas documenté et peut changer] → Lecture tolérante, fixtures par version, et état des lieux sans conversations plutôt qu'un échec.
 - [Un état des lieux coûte beaucoup de tokens sur un gros projet] → Condensé des conversations, exclusion des données et des binaires, et lancement seulement avec l'accord de l'utilisateur.
-- [Notifications Windows attribuées à « Windows PowerShell » si le raccourci du menu Démarrer manque] → `altium service install` crée le raccourci, et le recrée s'il a disparu.
+- [Notifications Windows attribuées à « Windows PowerShell » si la clé AUMID manque] → `altium service install` écrit la clé, et la réécrit à chaque appel.
 
 ## Migration Plan
 
