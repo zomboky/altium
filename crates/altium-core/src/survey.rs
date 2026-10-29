@@ -16,6 +16,8 @@ use crate::time::Timestamp;
 /// Folder of `runtime/` holding the digest.
 pub const DIR: &str = "survey";
 pub const DIGEST_FILE: &str = "sessions.md";
+/// The survey instructions, read by Claude at the start of the session.
+pub const PROMPT_FILE: &str = "prompt.md";
 pub const STATE_FILE: &str = "survey/state.json";
 
 const MAX_USER_CHARS: usize = 600;

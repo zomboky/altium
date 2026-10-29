@@ -72,11 +72,9 @@ pub fn run() -> Result<()> {
     println!("  Claude te posera une question pour chaque task qu'il propose.");
     println!();
 
-    let status = Command::new(&claude_bin)
-        .current_dir(store.root())
-        .arg("--add-dir")
-        .arg(&dir)
-        .arg(prompt(&digest_path, count))
+    let prompt_path = dir.join(survey::PROMPT_FILE);
+    fs::write(&prompt_path, prompt(&digest_path, count))?;
+    let status = command(&claude_bin, store.root(), &prompt_path)
         .status()
         .with_context(|| format!("lancement de {}", claude_bin.display()))?;
     if !status.success() {
@@ -103,6 +101,19 @@ pub fn should_offer(root: &Path) -> bool {
 }
 
 /// Asks a yes/no question, yes by default.
+/// The interactive Claude Code session of the survey. Its only argument is
+/// a one-line prompt pointing at the instructions file: an option taking
+/// several values, such as `--add-dir`, would swallow a prompt placed after
+/// it, and `cmd.exe` cuts a multi-line argument given to `claude.cmd`.
+fn command(claude_bin: &Path, root: &Path, prompt_path: &Path) -> Command {
+    let mut command = Command::new(claude_bin);
+    command.current_dir(root).arg(format!(
+        "Read {} and follow its instructions to survey this project for Altium.",
+        prompt_path.display()
+    ));
+    command
+}
+
 pub fn ask(question: &str) -> Result<bool> {
     if !io::stdin().is_terminal() {
         return Ok(false);
@@ -113,4 +124,21 @@ pub fn ask(question: &str) -> Result<bool> {
     io::stdin().lock().read_line(&mut answer)?;
     let answer = answer.trim().to_lowercase();
     Ok(answer.is_empty() || matches!(answer.as_str(), "o" | "oui" | "y" | "yes"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_prompt_is_the_only_argument() {
+        let root = Path::new("/projets/meudon");
+        let prompt = root.join(".altium/runtime/survey/prompt.md");
+        let command = command(Path::new("claude"), root, &prompt);
+        let args: Vec<String> = command.get_args().map(|a| a.to_string_lossy().into_owned()).collect();
+        assert_eq!(args.len(), 1, "{args:?}");
+        assert!(!args[0].starts_with('-'));
+        assert!(!args[0].contains('\n'));
+        assert!(args[0].contains("prompt.md"));
+    }
 }
