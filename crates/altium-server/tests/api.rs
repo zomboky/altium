@@ -40,7 +40,10 @@ async fn start() -> Server {
 async fn request(port: u16, method: &str, path: &str, headers: &[(&str, &str)], body: Option<Value>) -> (u16, String) {
     let mut stream = TcpStream::connect(("127.0.0.1", port)).await.unwrap();
     let body = body.map(|b| b.to_string()).unwrap_or_default();
-    let mut text = format!("{method} {path} HTTP/1.1\r\nConnection: close\r\nContent-Length: {}\r\n", body.len());
+    let mut text = format!(
+        "{method} {path} HTTP/1.1\r\nConnection: close\r\nContent-Length: {}\r\n",
+        body.len()
+    );
     if !headers.iter().any(|(name, _)| name.eq_ignore_ascii_case("host")) {
         text.push_str(&format!("Host: 127.0.0.1:{port}\r\n"));
     }
@@ -57,7 +60,10 @@ async fn request(port: u16, method: &str, path: &str, headers: &[(&str, &str)], 
     stream.read_to_end(&mut response).await.unwrap();
     let response = String::from_utf8_lossy(&response).into_owned();
     let status = response.split_whitespace().nth(1).unwrap().parse().unwrap();
-    let body = response.split_once("\r\n\r\n").map(|(_, b)| b.to_owned()).unwrap_or_default();
+    let body = response
+        .split_once("\r\n\r\n")
+        .map(|(_, b)| b.to_owned())
+        .unwrap_or_default();
     (status, body)
 }
 
