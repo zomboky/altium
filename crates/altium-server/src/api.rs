@@ -1,5 +1,6 @@
 //! REST API under `/api`, the SSE stream, and the embedded front.
 
+use std::collections::BTreeMap;
 use std::convert::Infallible;
 use std::sync::Arc;
 
@@ -8,7 +9,7 @@ use altium_core::activity;
 use altium_core::actor::Actor;
 use altium_core::files;
 use altium_core::graph::Search;
-use altium_core::memory::NodeKind;
+use altium_core::memory::{Link, LinkTarget, LinkType, NodeKind};
 use altium_core::ops::{self, OpError};
 use altium_core::patch::{Edit, TaskPatch};
 use altium_core::project::Project;
@@ -46,8 +47,16 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/api/projects/{id}/tasks/{task}/move", post(move_task))
         .route("/api/projects/{id}/activity", get(activity_feed))
         .route("/api/projects/{id}/stats", get(stats))
-        .route("/api/projects/{id}/memory", get(memory_index))
-        .route("/api/projects/{id}/memory/{node}", get(memory_node))
+        .route("/api/projects/{id}/memory", get(memory_index).post(create_node))
+        .route(
+            "/api/projects/{id}/memory/{node}",
+            get(memory_node).put(update_node).delete(delete_node),
+        )
+        .route(
+            "/api/projects/{id}/memory/{node}/links",
+            post(add_link).delete(remove_link),
+        )
+        .route("/api/projects/{id}/layout/{map}", get(layout).put(save_layout))
         .route("/api/projects/{id}/memory/{node}/pin", put(pin_node))
         .route("/api/projects/{id}/memory-graph", get(memory_graph))
         .route("/api/projects/{id}/files/{*path}", get(project_file))
@@ -537,6 +546,224 @@ async fn pin_node(
 ) -> ApiResult<StatusCode> {
     let (store, _) = open(&state, &id)?;
     ops::pin(&store, &node, body.pinned, &Actor::User, &Clock::system())?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+#[derive(Deserialize)]
+struct NewNodeBody {
+    kind: NodeKind,
+    title: String,
+    #[serde(default)]
+    description: String,
+    #[serde(default)]
+    tags: Vec<String>,
+    /// The node the new one is part of.
+    #[serde(default)]
+    parent: Option<String>,
+    /// A task that works on the new node.
+    #[serde(default)]
+    task: Option<TaskId>,
+}
+
+/// A node made in the dashboard: its id comes from its title, and without a
+/// description its title stands for one.
+async fn create_node(
+    State(state): State<Arc<AppState>>,
+    Path(id): Path<String>,
+    Json(body): Json<NewNodeBody>,
+) -> ApiResult<(StatusCode, Json<Value>)> {
+    let (store, _) = open(&state, &id)?;
+    let title = body.title.trim();
+    if title.is_empty() {
+        return Err(ApiError::new(
+            StatusCode::UNPROCESSABLE_ENTITY,
+            "un bloc a besoin d’un titre",
+        ));
+    }
+    let mut links = Vec::new();
+    if let Some(parent) = body.parent.filter(|p| !p.is_empty()) {
+        ops::check_nodes(&store, std::slice::from_ref(&parent))?;
+        links.push(Link {
+            to: LinkTarget::Node(parent),
+            kind: LinkType::PartOf,
+            note: None,
+        });
+    }
+    if let Some(task) = body.task {
+        links.push(Link {
+            to: LinkTarget::Task(task),
+            kind: LinkType::RelatesTo,
+            note: None,
+        });
+    }
+    let description = match body.description.trim() {
+        "" => title.to_owned(),
+        text => text.to_owned(),
+    };
+    let input = ops::NodeInput {
+        id: ops::new_node_id(&store, title),
+        kind: Some(body.kind),
+        title: Some(title.to_owned()),
+        description: Some(description),
+        tags: Some(body.tags),
+        links: Some(links),
+        ..ops::NodeInput::default()
+    };
+    let (node, _, _) = ops::put_node(&store, input, &Actor::User, &Clock::system())?;
+    Ok((StatusCode::CREATED, Json(json!({"id": node.id}))))
+}
+
+#[derive(Deserialize)]
+struct NodeBody {
+    kind: Option<NodeKind>,
+    title: Option<String>,
+    description: Option<String>,
+    body: Option<String>,
+    tags: Option<Vec<String>>,
+}
+
+async fn update_node(
+    State(state): State<Arc<AppState>>,
+    Path((id, node)): Path<(String, String)>,
+    Json(body): Json<NodeBody>,
+) -> ApiResult<StatusCode> {
+    let (store, _) = open(&state, &id)?;
+    // Only an existing node: a typo must not create one.
+    ops::check_nodes(&store, std::slice::from_ref(&node))?;
+    let input = ops::NodeInput {
+        id: node,
+        kind: body.kind,
+        title: body.title,
+        description: body.description,
+        body: body.body,
+        tags: body.tags,
+        ..ops::NodeInput::default()
+    };
+    ops::put_node(&store, input, &Actor::User, &Clock::system())?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+#[derive(Deserialize)]
+struct DeleteNodeQuery {
+    #[serde(default)]
+    force: bool,
+}
+
+async fn delete_node(
+    State(state): State<Arc<AppState>>,
+    Path((id, node)): Path<(String, String)>,
+    Query(query): Query<DeleteNodeQuery>,
+) -> ApiResult<StatusCode> {
+    let (store, _) = open(&state, &id)?;
+    ops::delete_node(&store, &node, query.force, &Actor::User, &Clock::system())?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+#[derive(Deserialize)]
+struct LinkBody {
+    to: String,
+    #[serde(rename = "type")]
+    kind: LinkType,
+    #[serde(default)]
+    note: Option<String>,
+}
+
+fn link_target(text: &str) -> ApiResult<LinkTarget> {
+    text.parse()
+        .map_err(|e: String| ApiError::new(StatusCode::UNPROCESSABLE_ENTITY, e))
+}
+
+async fn add_link(
+    State(state): State<Arc<AppState>>,
+    Path((id, node)): Path<(String, String)>,
+    Json(body): Json<LinkBody>,
+) -> ApiResult<StatusCode> {
+    let (store, _) = open(&state, &id)?;
+    let to = link_target(&body.to)?;
+    if let LinkTarget::Task(task) = to
+        && !store.tasks()?.iter().any(|t| t.id == task)
+    {
+        return Err(ApiError::not_found(format!("tâche {task} introuvable")));
+    }
+    ops::link(&store, &node, to, body.kind, body.note, &Actor::User, &Clock::system())?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+#[derive(Deserialize)]
+struct UnlinkQuery {
+    to: String,
+    #[serde(rename = "type", default)]
+    kind: Option<LinkType>,
+}
+
+async fn remove_link(
+    State(state): State<Arc<AppState>>,
+    Path((id, node)): Path<(String, String)>,
+    Query(query): Query<UnlinkQuery>,
+) -> ApiResult<StatusCode> {
+    let (store, _) = open(&state, &id)?;
+    let to = link_target(&query.to)?;
+    ops::unlink(&store, &node, &to, query.kind, &Actor::User, &Clock::system())?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+/// Positions of the blocks moved by hand, per dashboard map, in
+/// `runtime/layout.json`: local to this machine, like a window layout.
+const LAYOUT_FILE: &str = "layout.json";
+
+type Positions = BTreeMap<String, [f64; 2]>;
+
+fn check_map(map: &str) -> ApiResult<()> {
+    let valid = !map.is_empty() && map.len() <= 32 && map.bytes().all(|b| b.is_ascii_lowercase() || b == b'-');
+    if valid {
+        Ok(())
+    } else {
+        Err(ApiError::not_found(format!("carte {map} inconnue")))
+    }
+}
+
+async fn layout(State(state): State<Arc<AppState>>, Path((id, map)): Path<(String, String)>) -> ApiResult<Json<Value>> {
+    check_map(&map)?;
+    let (store, _) = open(&state, &id)?;
+    let mut all: BTreeMap<String, Positions> = store.read_runtime(LAYOUT_FILE);
+    Ok(Json(json!({"positions": all.remove(&map).unwrap_or_default()})))
+}
+
+#[derive(Deserialize)]
+struct LayoutBody {
+    /// New positions; `null` forgets one.
+    #[serde(default)]
+    positions: BTreeMap<String, Option<[f64; 2]>>,
+    /// Forgets every position of the map first.
+    #[serde(default)]
+    reset: bool,
+}
+
+async fn save_layout(
+    State(state): State<Arc<AppState>>,
+    Path((id, map)): Path<(String, String)>,
+    Json(body): Json<LayoutBody>,
+) -> ApiResult<StatusCode> {
+    check_map(&map)?;
+    if body.positions.values().flatten().flatten().any(|v| !v.is_finite()) {
+        return Err(ApiError::new(StatusCode::UNPROCESSABLE_ENTITY, "position invalide"));
+    }
+    let (store, _) = open(&state, &id)?;
+    store.update_runtime(LAYOUT_FILE, |all: &mut BTreeMap<String, Positions>| {
+        let positions = all.entry(map.clone()).or_default();
+        if body.reset {
+            positions.clear();
+        }
+        for (node, position) in body.positions {
+            match position {
+                Some(p) => positions.insert(node, p),
+                None => positions.remove(&node),
+            };
+        }
+        if positions.is_empty() {
+            all.remove(&map);
+        }
+    })?;
     Ok(StatusCode::NO_CONTENT)
 }
 

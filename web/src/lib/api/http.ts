@@ -8,8 +8,12 @@ import type {
   GraphNode,
   MemoryFilter,
   MemoryNode,
+  NewNode,
   NewTask,
+  NodeChange,
+  LinkType,
   NodeLine,
+  Positions,
   ProjectCard,
   ProjectDetail,
   ProjectStatus,
@@ -37,6 +41,15 @@ export interface Api {
   node(id: string, node: string): Promise<MemoryNode>
   memoryGraph(id: string): Promise<GraphNode[]>
   pin(id: string, node: string, pinned: boolean): Promise<void>
+  createNode(id: string, node: NewNode): Promise<string>
+  updateNode(id: string, node: string, change: NodeChange): Promise<void>
+  deleteNode(id: string, node: string, force?: boolean): Promise<void>
+  /** Links `node` to a node id, `task:T-1`, `file:path` or a URL. */
+  link(id: string, node: string, to: string, type: LinkType): Promise<void>
+  unlink(id: string, node: string, to: string, type?: LinkType): Promise<void>
+  layout(id: string, map: string): Promise<Positions>
+  /** Saves positions; `null` forgets one, `reset` forgets them all first. */
+  saveLayout(id: string, map: string, positions: Record<string, [number, number] | null>, reset?: boolean): Promise<void>
   git(id: string): Promise<GitInfo | null>
 }
 
@@ -143,6 +156,29 @@ export class HttpApi implements Api {
   }
   pin(id: string, node: string, pinned: boolean) {
     return this.call<void>('PUT', this.project_path(id, `/memory/${encodeURIComponent(node)}/pin`), { pinned })
+  }
+  async createNode(id: string, node: NewNode) {
+    return (await this.call<{ id: string }>('POST', this.project_path(id, '/memory'), node)).id
+  }
+  updateNode(id: string, node: string, change: NodeChange) {
+    return this.call<void>('PUT', this.project_path(id, `/memory/${encodeURIComponent(node)}`), change)
+  }
+  deleteNode(id: string, node: string, force = false) {
+    const path = `/memory/${encodeURIComponent(node)}${force ? '?force=true' : ''}`
+    return this.call<void>('DELETE', this.project_path(id, path))
+  }
+  link(id: string, node: string, to: string, type: LinkType) {
+    return this.call<void>('POST', this.project_path(id, `/memory/${encodeURIComponent(node)}/links`), { to, type })
+  }
+  unlink(id: string, node: string, to: string, type?: LinkType) {
+    const path = `/memory/${encodeURIComponent(node)}/links` + query({ to, type })
+    return this.call<void>('DELETE', this.project_path(id, path))
+  }
+  async layout(id: string, map: string) {
+    return (await this.call<{ positions: Positions }>('GET', this.project_path(id, `/layout/${map}`))).positions
+  }
+  saveLayout(id: string, map: string, positions: Record<string, [number, number] | null>, reset = false) {
+    return this.call<void>('PUT', this.project_path(id, `/layout/${map}`), { positions, reset })
   }
   async git(id: string) {
     return (await this.call<{ git: GitInfo | null }>('GET', this.project_path(id, '/git'))).git

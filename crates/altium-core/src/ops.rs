@@ -388,6 +388,72 @@ pub fn unlink(
     })
 }
 
+/// A free node id made from `title`: « Données ERA5 » gives `donnees-era5`,
+/// then `donnees-era5-2` if it is taken.
+pub fn new_node_id(store: &Store, title: &str) -> String {
+    let mut slug = String::new();
+    for c in title.to_lowercase().chars() {
+        let folded = match c {
+            'à' | 'â' | 'ä' | 'á' | 'ã' | 'å' => "a",
+            'ç' => "c",
+            'é' | 'è' | 'ê' | 'ë' => "e",
+            'î' | 'ï' | 'í' | 'ì' => "i",
+            'ô' | 'ö' | 'ó' | 'ò' | 'õ' => "o",
+            'û' | 'ü' | 'ú' | 'ù' => "u",
+            'ÿ' => "y",
+            'ñ' => "n",
+            'œ' => "oe",
+            'æ' => "ae",
+            'ß' => "ss",
+            c if c.is_ascii_alphanumeric() => {
+                slug.push(c);
+                continue;
+            }
+            _ => "-",
+        };
+        slug.push_str(folded);
+    }
+    let mut base = slug
+        .split('-')
+        .filter(|part| !part.is_empty())
+        .collect::<Vec<_>>()
+        .join("-");
+    if base.len() > 48 {
+        base.truncate(48);
+        base = base.trim_end_matches('-').to_owned();
+    }
+    if base.is_empty() {
+        base = "node".into();
+    }
+    let taken = |id: &str| store.memory_node(id).is_ok();
+    if !taken(&base) {
+        return base;
+    }
+    (2..)
+        .map(|n| format!("{base}-{n}"))
+        .find(|id| !taken(id))
+        .expect("a free id exists")
+}
+
+/// Fails on the first of `ids` that is not a node, before anything is written.
+pub fn check_nodes(store: &Store, ids: &[String]) -> Result<(), OpError> {
+    for id in ids {
+        if store.memory_node(id).is_err() {
+            return Err(OpError::NodeNotFound(id.clone()));
+        }
+    }
+    Ok(())
+}
+
+/// Attaches task `task` to the nodes `ids`: each gets a `relates_to` link to
+/// it, which the dashboard draws as the task working on that part.
+pub fn attach_task(store: &Store, ids: &[String], task: TaskId, by: &Actor, clock: &Clock) -> Result<(), OpError> {
+    for id in ids {
+        link(store, id, LinkTarget::Task(task), LinkType::RelatesTo, None, by, clock)?;
+    }
+    Ok(())
+}
+
 pub fn pin(store: &Store, id: &str, pinned: bool, by: &Actor, clock: &Clock) -> Result<MemoryNode, OpError> {
     edit_node(
         store,
@@ -552,5 +618,51 @@ mod tests {
         assert!(err.to_string().contains("api-refresh-token"), "{err}");
         delete_node(&store, "auth-jwt", true, &Actor::User, &clock).unwrap();
         assert_eq!(store.memory_node("api-refresh-token").unwrap().body, "Body\n");
+    }
+
+    #[test]
+    fn new_ids_and_attached_tasks() {
+        let root = tempfile::tempdir().unwrap();
+        let store = Store::init(root.path(), "foo").unwrap();
+        let clock = Clock::system();
+        let user = Actor::User;
+        assert_eq!(new_node_id(&store, "Données ERA5 (vent) !"), "donnees-era5-vent");
+        assert_eq!(new_node_id(&store, "  ?? "), "node");
+        put_node(
+            &store,
+            NodeInput {
+                id: "donnees-era5".into(),
+                kind: Some(NodeKind::Data),
+                title: Some("Données ERA5".into()),
+                description: Some("Réanalyse météo".into()),
+                ..NodeInput::default()
+            },
+            &user,
+            &clock,
+        )
+        .unwrap();
+        assert_eq!(new_node_id(&store, "Données ERA5"), "donnees-era5-2");
+
+        let task = create_task(
+            &store,
+            NewTask {
+                title: "Télécharger 2010-2015".into(),
+                ..NewTask::default()
+            },
+            &user,
+            &clock,
+        )
+        .unwrap();
+        let ghost = ["ghost".to_owned()];
+        assert!(matches!(check_nodes(&store, &ghost), Err(OpError::NodeNotFound(_))));
+        let ids = ["donnees-era5".to_owned()];
+        check_nodes(&store, &ids).unwrap();
+        attach_task(&store, &ids, task.id, &user, &clock).unwrap();
+        // Attaching twice keeps one link.
+        attach_task(&store, &ids, task.id, &user, &clock).unwrap();
+        let node = store.memory_node("donnees-era5").unwrap();
+        assert_eq!(node.meta.links.len(), 1);
+        assert_eq!(node.meta.links[0].to, LinkTarget::Task(task.id));
+        assert!(NodeKind::Data.is_architecture() && !NodeKind::Fact.is_architecture());
     }
 }

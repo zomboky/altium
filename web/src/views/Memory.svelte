@@ -2,13 +2,12 @@
   import { onDestroy, untrack } from 'svelte'
 
   import FileLink from '../components/FileLink.svelte'
-  import { type GraphNode, type Link, type MemoryNode, NODE_KINDS, type NodeLine, services } from '../lib/api'
+  import { type Link, type MemoryNode, NODE_KINDS, type NodeLine, services } from '../lib/api'
   import { attempt } from '../lib/actions'
   import { clock } from '../lib/clock.svelte'
   import { KIND_LABELS, LINK_LABELS, relative } from '../lib/format'
   import { t } from '../lib/i18n.svelte'
   import { Resource } from '../lib/resource.svelte'
-  import { LAYOUTS, type LayoutName } from '../lib/layouts'
   import { href, link, router } from '../lib/router.svelte'
 
   let { project, node }: { project: string; node: string | null } = $props()
@@ -18,37 +17,27 @@
   const text = $derived(query.get('text') ?? '')
   const kind = $derived(query.get('kind') ?? '')
   const tag = $derived(query.get('tag') ?? '')
-  const graph = $derived(query.get('view') === 'graph')
-  const layout = $derived.by(() => {
-    const value = query.get('layout') ?? ''
-    return Object.hasOwn(LAYOUTS, value) ? (value as LayoutName) : 'vertical'
-  })
+  // The graph moved to the dashboard: old links still lead to it.
+  // svelte-ignore state_referenced_locally
+  if (query.get('view') === 'graph') router.go(href('dashboard', project, { query: { map: 'memory' } }), true)
 
   const index = new Resource<NodeLine[]>(() =>
     api.memory(project, { text: text || undefined, kind: kind || undefined, tag: tag || undefined }),
   )
   const detail = new Resource<MemoryNode | null>(() => (node ? api.node(project, node) : Promise.resolve(null)))
-  // The whole graph: filters apply on the client, the search only fades nodes.
-  const nodes = new Resource<GraphNode[]>(() => api.memoryGraph(project))
   $effect(() => {
     void [text, kind, tag]
-    if (!graph) untrack(() => index.refresh())
-  })
-  $effect(() => {
-    if (graph) untrack(() => nodes.refresh())
+    untrack(() => index.refresh())
   })
   detail.refresh()
   onDestroy(
     live.on(project, ['memory', 'tasks'], () => {
-      if (graph) nodes.refresh()
-      else index.refresh()
+      index.refresh()
       detail.refresh()
     }),
   )
 
-  const graphTags = $derived([...new Set((nodes.data ?? []).flatMap((n) => n.tags))].sort())
-
-  const tags = $derived(graph ? graphTags : [...new Set((index.data ?? []).flatMap((n) => n.tags))].sort())
+  const tags = $derived([...new Set((index.data ?? []).flatMap((n) => n.tags))].sort())
 
   // Filters stay in the URL when moving between nodes.
   function nodeHref(id: string): string {
@@ -68,20 +57,13 @@
       index.refresh()
     }
   }
-
-  async function pinInGraph(id: string, pinned: boolean) {
-    if (await attempt(() => api.pin(project, id, pinned))) nodes.refresh()
-  }
 </script>
 
 {#snippet filters()}
   <div class="filters">
-    <div class="modes" role="group" aria-label={t('Display', 'Affichage')}>
-      <button class:active={!graph} aria-pressed={!graph} onclick={() => router.setQuery({ view: null })}>{t('List', 'Liste')}</button>
-      <button class:active={graph} aria-pressed={graph} onclick={() => router.setQuery({ view: 'graph' })} data-testid="graph-mode"
-        >{t('Graph', 'Graphe')}</button
-      >
-    </div>
+    <a class="button" href={href('dashboard', project, { query: { map: 'memory' } })} onclick={link} data-testid="graph-mode"
+      >{t('See it as a map', 'Voir en carte')}</a
+    >
     <input
       id="search"
       type="search"
@@ -101,168 +83,121 @@
   </div>
 {/snippet}
 
-{#if graph}
-  {@render filters()}
-  {#if nodes.error}
-    <p class="error">{nodes.error}</p>
-  {:else if nodes.data}
-    {#await import('../components/graph/MemoryGraph.svelte')}
-      <p class="muted">{t('Loading the graph…', 'Chargement du graphe…')}</p>
-    {:then { default: MemoryGraph }}
-      <MemoryGraph
-        {project}
-        list={nodes.data}
-        {text}
-        {kind}
-        {tag}
-        {layout}
-        onlayout={(value) => router.setQuery({ layout: value === 'vertical' ? null : value })}
-        onpin={pinInGraph}
-      />
-    {/await}
-  {:else}
-    <p class="muted">{t('Loading…', 'Chargement…')}</p>
-  {/if}
-{:else}
-  <div class="layout">
-    <section class="index">
-      {@render filters()}
-      {#if index.error}<p class="error">{index.error}</p>{/if}
-      {#if index.data && index.data.length === 0}
-        <p class="muted">
-          {text || kind || tag
-            ? t('No node matches.', 'Aucun nœud ne correspond.')
-            : t('No memory node in this project.', 'Aucun nœud de mémoire pour ce projet.')}
-        </p>
-      {/if}
-      <ul>
-        {#each index.data ?? [] as n (n.id)}
-          <li class:current={n.id === node} class:superseded={n.superseded_by}>
-            <a href={nodeHref(n.id)} onclick={link} data-testid="node-link">
-              <span class="head">
-                {#if n.pinned}<span title={t('Pinned', 'Épinglé')}>📌</span>{/if}
-                <strong>{n.title}</strong>
-                <span class="chip">{KIND_LABELS[n.kind]}</span>
-              </span>
-              <span class="muted desc">{n.description}</span>
-              <span class="flags">
-                {#if n.broken_links > 0}<span class="chip overdue">{n.broken_links} {n.broken_links > 1 ? t('broken links', 'liens cassés') : t('broken link', 'lien cassé')}</span>{/if}
-                {#if n.contradicts.length > 0}<span class="chip near">contradiction</span>{/if}
-                {#if n.superseded_by}<span class="chip">{t('superseded by', 'remplacé par')} {n.superseded_by}</span>{/if}
-              </span>
-            </a>
-          </li>
-        {/each}
-      </ul>
-    </section>
+<div class="layout">
+  <section class="index">
+    {@render filters()}
+    {#if index.error}<p class="error">{index.error}</p>{/if}
+    {#if index.data && index.data.length === 0}
+      <p class="muted">
+        {text || kind || tag
+          ? t('No node matches.', 'Aucun nœud ne correspond.')
+          : t('No memory node in this project.', 'Aucun nœud de mémoire pour ce projet.')}
+      </p>
+    {/if}
+    <ul>
+      {#each index.data ?? [] as n (n.id)}
+        <li class:current={n.id === node} class:superseded={n.superseded_by}>
+          <a href={nodeHref(n.id)} onclick={link} data-testid="node-link">
+            <span class="head">
+              {#if n.pinned}<span title={t('Pinned', 'Épinglé')}>📌</span>{/if}
+              <strong>{n.title}</strong>
+              <span class="chip">{KIND_LABELS[n.kind]}</span>
+            </span>
+            <span class="muted desc">{n.description}</span>
+            <span class="flags">
+              {#if n.broken_links > 0}<span class="chip overdue">{n.broken_links} {n.broken_links > 1 ? t('broken links', 'liens cassés') : t('broken link', 'lien cassé')}</span>{/if}
+              {#if n.contradicts.length > 0}<span class="chip near">contradiction</span>{/if}
+              {#if n.superseded_by}<span class="chip">{t('superseded by', 'remplacé par')} {n.superseded_by}</span>{/if}
+            </span>
+          </a>
+        </li>
+      {/each}
+    </ul>
+  </section>
 
-    <section class="detail">
-      {#if !node}
-        <p class="muted">{t('Pick a node to read it.', 'Choisis un nœud pour le lire.')}</p>
-      {:else if detail.error}
-        <p class="error">{detail.error}</p>
-      {:else if detail.data}
-        {@const n = detail.data}
-        <article class="panel">
-          <header>
-            <div>
-              <h1>{n.title}</h1>
-              <p class="muted">
-                <span class="mono">{n.id}</span> · {KIND_LABELS[n.kind]} · {t('updated', 'mis à jour')} {relative(n.updated, clock.now)}
-                {#each n.tags as name (name)}
-                  <button class="chip tag" onclick={() => router.setQuery({ tag: name })}>#{name}</button>
-                {/each}
-              </p>
-            </div>
-            <button onclick={() => pin(n)}>{n.pinned ? t('Unpin', 'Désépingler') : t('Pin', 'Épingler')}</button>
-          </header>
-          <p class="description">{n.description}</p>
-          {#if n.superseded_by}
-            <p class="warning">
-              {t('Superseded by', 'Remplacé par')} <a href={nodeHref(n.superseded_by)} onclick={link}>{n.superseded_by}</a>.
+  <section class="detail">
+    {#if !node}
+      <p class="muted">{t('Pick a node to read it.', 'Choisis un nœud pour le lire.')}</p>
+    {:else if detail.error}
+      <p class="error">{detail.error}</p>
+    {:else if detail.data}
+      {@const n = detail.data}
+      <article class="panel">
+        <header>
+          <div>
+            <h1>{n.title}</h1>
+            <p class="muted">
+              <span class="mono">{n.id}</span> · {KIND_LABELS[n.kind]} · {t('updated', 'mis à jour')} {relative(n.updated, clock.now)}
+              {#each n.tags as name (name)}
+                <button class="chip tag" onclick={() => router.setQuery({ tag: name })}>#{name}</button>
+              {/each}
             </p>
-          {/if}
-          {#if n.contradicts.length > 0}
-            <p class="warning">
-              {t('Contradicts', 'Contradiction avec')}
-              {#each n.contradicts as c, i (c)}{i > 0 ? ', ' : ''}<a href={nodeHref(c)} onclick={link}>{c}</a>{/each}.
-            </p>
-          {/if}
-          <div class="body">{n.body}</div>
+          </div>
+          <button onclick={() => pin(n)}>{n.pinned ? t('Unpin', 'Désépingler') : t('Pin', 'Épingler')}</button>
+        </header>
+        <p class="description">{n.description}</p>
+        {#if n.superseded_by}
+          <p class="warning">
+            {t('Superseded by', 'Remplacé par')} <a href={nodeHref(n.superseded_by)} onclick={link}>{n.superseded_by}</a>.
+          </p>
+        {/if}
+        {#if n.contradicts.length > 0}
+          <p class="warning">
+            {t('Contradicts', 'Contradiction avec')}
+            {#each n.contradicts as c, i (c)}{i > 0 ? ', ' : ''}<a href={nodeHref(c)} onclick={link}>{c}</a>{/each}.
+          </p>
+        {/if}
+        <div class="body">{n.body}</div>
 
-          {#snippet links(list: Link[], label: string, outgoing: boolean)}
-            {#if list.length > 0}
-              <h2>{label}</h2>
-              <ul class="links">
-                {#each list as l, i (l.kind + l.target + i)}
-                  {@const url = target(l)}
-                  <li class:broken={l.broken}>
-                    <span class="muted">{outgoing ? '' : `${l.target} `}{LINK_LABELS[l.kind] ?? l.kind}{outgoing ? '' : t(' this node', ' ce nœud')}</span>
-                    {#if outgoing}
-                      {#if l.target_type === 'file'}
-                        <FileLink {project} target={l.target} available={!l.broken} title={l.title} />
-                      {:else if url && !l.broken}
-                        <a
-                          href={url}
-                          onclick={l.target_type === 'url' ? undefined : link}
-                          target={l.target_type === 'url' ? '_blank' : undefined}
-                          rel="noreferrer">{l.title ?? l.target}</a
-                        >
-                      {:else}
-                        <span class="mono">{l.title ?? l.target}</span>
-                      {/if}
-                      <span class="chip">{l.target_type === 'node'
-                          ? t('node', 'nœud')
-                          : l.target_type === 'task'
-                            ? 'task'
-                            : l.target_type === 'file'
-                              ? t('file', 'fichier')
-                              : t('link', 'lien')}</span>
-                      {#if l.broken}<span class="chip overdue">{t('broken', 'cassé')}</span>{/if}
-                      {#if l.note}<span class="muted small">— {l.note}</span>{/if}
+        {#snippet links(list: Link[], label: string, outgoing: boolean)}
+          {#if list.length > 0}
+            <h2>{label}</h2>
+            <ul class="links">
+              {#each list as l, i (l.kind + l.target + i)}
+                {@const url = target(l)}
+                <li class:broken={l.broken}>
+                  <span class="muted">{outgoing ? '' : `${l.target} `}{LINK_LABELS[l.kind] ?? l.kind}{outgoing ? '' : t(' this node', ' ce nœud')}</span>
+                  {#if outgoing}
+                    {#if l.target_type === 'file'}
+                      <FileLink {project} target={l.target} available={!l.broken} title={l.title} />
+                    {:else if url && !l.broken}
+                      <a
+                        href={url}
+                        onclick={l.target_type === 'url' ? undefined : link}
+                        target={l.target_type === 'url' ? '_blank' : undefined}
+                        rel="noreferrer">{l.title ?? l.target}</a
+                      >
                     {:else}
-                      <a href={nodeHref(l.target)} onclick={link}>{l.title ?? l.target}</a>
+                      <span class="mono">{l.title ?? l.target}</span>
                     {/if}
-                  </li>
-                {/each}
-              </ul>
-            {/if}
-          {/snippet}
+                    <span class="chip">{l.target_type === 'node'
+                        ? t('node', 'nœud')
+                        : l.target_type === 'task'
+                          ? 'task'
+                          : l.target_type === 'file'
+                            ? t('file', 'fichier')
+                            : t('link', 'lien')}</span>
+                    {#if l.broken}<span class="chip overdue">{t('broken', 'cassé')}</span>{/if}
+                    {#if l.note}<span class="muted small">— {l.note}</span>{/if}
+                  {:else}
+                    <a href={nodeHref(l.target)} onclick={link}>{l.title ?? l.target}</a>
+                  {/if}
+                </li>
+              {/each}
+            </ul>
+          {/if}
+        {/snippet}
 
-          {@render links(n.links, t('Outgoing links', 'Liens sortants'), true)}
-          {@render links(n.incoming, t('Incoming links', 'Liens entrants'), false)}
-        </article>
-      {:else}
-        <p class="muted">{t('Loading…', 'Chargement…')}</p>
-      {/if}
-    </section>
-  </div>
-{/if}
+        {@render links(n.links, t('Outgoing links', 'Liens sortants'), true)}
+        {@render links(n.incoming, t('Incoming links', 'Liens entrants'), false)}
+      </article>
+    {:else}
+      <p class="muted">{t('Loading…', 'Chargement…')}</p>
+    {/if}
+  </section>
+</div>
 
 <style>
-  .modes {
-    display: inline-flex;
-  }
-
-  .modes button {
-    border-radius: 0;
-  }
-
-  .modes button:first-child {
-    border-radius: 6px 0 0 6px;
-  }
-
-  .modes button:last-child {
-    border-radius: 0 6px 6px 0;
-    margin-left: -1px;
-  }
-
-  .modes .active {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: var(--accent-text);
-  }
-
   .layout {
     display: grid;
     grid-template-columns: minmax(18rem, 1fr) minmax(0, 2fr);

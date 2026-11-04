@@ -53,11 +53,16 @@ try {
   await page.getByTestId('history-row').first().waitFor()
   await shot(page, 'history', 490)
 
-  await page.goto(`${project}/memory?view=graph`)
+  await page.goto(`${project}/dashboard`)
   await page.getByTestId('graph-card').first().waitFor()
   await page.waitForTimeout(800)
-  await page.getByTestId('graph-card').filter({ hasText: 'axum server' }).hover()
-  await shot(page, 'memory-graph')
+  await page.getByTestId('graph-card').filter({ hasText: 'Load simulator' }).hover()
+  await shot(page, 'dashboard-architecture')
+
+  await page.goto(`${project}/dashboard?map=doing`)
+  await page.getByTestId('graph-task').first().waitFor()
+  await page.waitForTimeout(800)
+  await shot(page, 'dashboard-tasks')
 
   await page.goto(`${project}/activity`)
   await shot(page, 'activity', 450)

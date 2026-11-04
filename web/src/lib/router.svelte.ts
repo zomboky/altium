@@ -3,6 +3,7 @@
 //   /projects/{id}                     summary
 //   /projects/{id}/tasks?status=…      task list
 //   /projects/{id}/kanban              kanban
+//   /projects/{id}/dashboard?map=…     the project's maps
 //   /projects/{id}/activity?tool=…     activity
 //   /projects/{id}/history?status=…    last tasks and their deliverables
 //   /projects/{id}/memory?kind=…       memory
@@ -10,7 +11,16 @@
 
 import { t } from './i18n.svelte'
 
-export type Page = 'overview' | 'summary' | 'tasks' | 'kanban' | 'history' | 'activity' | 'memory' | 'missing'
+export type Page =
+  | 'overview'
+  | 'summary'
+  | 'dashboard'
+  | 'tasks'
+  | 'kanban'
+  | 'history'
+  | 'activity'
+  | 'memory'
+  | 'missing'
 
 export interface Route {
   page: Page
@@ -30,6 +40,7 @@ function tab(page: Page, en: string, fr: string): { page: Page; label: string } 
 
 export const TABS = [
   tab('summary', 'Summary', 'Synthèse'),
+  tab('dashboard', 'Dashboard', 'Dashboard'),
   tab('tasks', 'List', 'Liste'),
   tab('kanban', 'Kanban', 'Kanban'),
   tab('history', 'History', 'Historique'),
@@ -52,8 +63,8 @@ export function parse(path: string, search = ''): Route {
   if (section === undefined) return route('summary', project)
   if (section === 'memory') return parts.length <= 4 ? route('memory', project, node ?? null) : route('missing')
   if (parts.length > 3) return route('missing')
-  if (section === 'tasks' || section === 'kanban' || section === 'history' || section === 'activity')
-    return route(section, project)
+  if (['dashboard', 'tasks', 'kanban', 'history', 'activity'].includes(section))
+    return route(section as Page, project)
   return route('missing')
 }
 

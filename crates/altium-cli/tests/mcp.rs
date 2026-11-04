@@ -237,3 +237,31 @@ fn memory_through_mcp() {
     let index = client.ok("memory_index", json!({}));
     assert_eq!(index.lines().count(), 3);
 }
+
+#[test]
+fn tasks_attach_to_architecture_parts() {
+    let (tmp, root) = project();
+    let mut client = Client::start(&root, tmp.path());
+    client.ok(
+        "memory_put",
+        json!({"id": "data-model", "kind": "data", "title": "Data model", "desc": "Tables of the study"}),
+    );
+    let (text, error) = client.call("task_create", json!({"title": "Download 2010", "nodes": ["ghost"]}));
+    assert!(error && text.contains("ghost"), "{text}");
+    // Nothing was created by the failed call.
+    let created = client.ok(
+        "task_create",
+        json!({"title": "Download 2010", "nodes": ["data-model"]}),
+    );
+    assert!(
+        created.starts_with("created T-1") && created.ends_with("attached to data-model"),
+        "{created}"
+    );
+    let node = client.ok("memory_get", json!({"ids": ["data-model"]}));
+    assert!(node.contains("relates_to task:T-1"), "{node}");
+    let updated = client.ok(
+        "task_update",
+        json!({"id": "T-1", "status": "doing", "nodes": ["data-model"]}),
+    );
+    assert!(updated.contains("attached to data-model"), "{updated}");
+}

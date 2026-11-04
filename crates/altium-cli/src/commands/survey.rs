@@ -28,10 +28,11 @@ fn prompt(digest: &Path, conversations: usize) -> String {
 3. Read the digest of past Claude Code conversations in this folder: {digest} ({conversations} conversations, dated, oldest first). It ends with Claude's auto memory for this folder, if any.
 4. Write what you learned with the Altium MCP tools only (never edit .altium/ files directly):
    - status_set: a summary (max 600 characters: where the project stands, next step, blockers) and the phase.
-   - memory_put: short nodes (decision, fact, convention, component, gotcha, howto, reference) linked with memory_link. A node drawn from a conversation states the conversation date in its body and cites it as its source (\"Source: conversation of YYYY-MM-DD\"). When a later conversation contradicts an earlier fact, the newer node supersedes the older one.
+   - memory_put: the architecture first, as nodes of kind component, data, program, study or tool (one per module, dataset or data model, script or notebook, study or report, external tool), linked with part_of to the part they belong to and depends_on to what they use; then the knowledge, as short nodes (decision, fact, convention, gotcha, howto, reference) linked with memory_link to the parts they are about. A node drawn from a conversation states the conversation date in its body and cites it as its source (\"Source: conversation of YYYY-MM-DD\"). When a later conversation contradicts an earlier fact, the newer node supersedes the older one.
 5. Then propose tasks ONE AT A TIME. For each, ask the user with your question tool (AskUserQuestion) whether to add it as \"To do\", \"To explore\" or \"Ignore\", with the task title and one line of why. Wait for the answer before the next proposal:
    - To do: task_create with status todo.
    - To explore: task_create with status todo and the tag explore.
+   In both cases pass nodes with the ids of the architecture parts the task works on.
    - Ignore: create nothing.
 6. Finish with a short recap of what you wrote.
 

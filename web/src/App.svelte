@@ -7,6 +7,7 @@
   import { TABS, href, link, router } from './lib/router.svelte'
   import { SHORTCUTS, typing, ui } from './lib/ui.svelte'
   import Activity from './views/Activity.svelte'
+  import Dashboard from './views/Dashboard.svelte'
   import History from './views/History.svelte'
   import Kanban from './views/Kanban.svelte'
   import Memory from './views/Memory.svelte'
@@ -53,6 +54,9 @@
       case 's':
         go('summary')
         break
+      case 'd':
+        go('dashboard')
+        break
       case 'h':
         go('history')
         break
@@ -66,7 +70,7 @@
         router.go('/')
         break
       case '/': {
-        if (project && !['tasks', 'kanban', 'memory', 'activity'].includes(route.page)) go('tasks')
+        if (project && !['tasks', 'kanban', 'memory', 'activity', 'dashboard'].includes(route.page)) go('tasks')
         await tick()
         const search = document.getElementById('search') as HTMLInputElement | null
         if (!search) return
@@ -124,7 +128,7 @@
   <button class="help" onclick={() => (ui.help = true)} title={t('Keyboard shortcuts (?)', 'Raccourcis clavier (?)')}>?</button>
 </header>
 
-<main>
+<main class:wide={route.page === 'dashboard'}>
   {#if route.page === 'overview'}
     <Overview {projects} />
   {:else if route.page === 'missing' || !route.project}
@@ -136,6 +140,8 @@
     {#key route.project}
       {#if route.page === 'summary'}
         <Summary project={route.project} />
+      {:else if route.page === 'dashboard'}
+        <Dashboard project={route.project} />
       {:else if route.page === 'tasks'}
         <TaskList project={route.project} />
       {:else if route.page === 'kanban'}
@@ -247,6 +253,10 @@
     padding: 1.25rem;
     max-width: 90rem;
     margin: 0 auto;
+  }
+
+  main.wide {
+    max-width: none;
   }
 
   .notice {

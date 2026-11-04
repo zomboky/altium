@@ -8,7 +8,7 @@ Claude keeps each project's state in a small `.altium/` folder: a status summary
 
 - **Claude does the bookkeeping.** Hooks and an MCP server let Claude create and update tasks, write the project summary and store durable knowledge as linked memory notes, each change attributed to its session.
 - **Every session starts informed.** A compact summary of the project (phase, next tasks, deadlines, memory index) is injected at session start, within a token budget.
-- **One dashboard for everything.** Task list, kanban, history, live Claude activity and the memory graph, updated in real time whether a change comes from Claude, another tab or a hand edit of the files.
+- **One dashboard for everything.** Maps of the project's architecture with the tasks on the parts they work on, task list, kanban, history and live Claude activity, updated in real time whether a change comes from Claude, another tab or a hand edit of the files.
 - **Local only.** Plain text files you can commit, a server bound to `127.0.0.1`, no account, no cloud.
 - **Keeps itself up to date.** `altium update` rebuilds the latest version, and the first command of the day checks for one in the background.
 
@@ -83,7 +83,22 @@ For a project that already has a history, `altium survey` opens a Claude Code se
 
 ## The dashboard
 
-Every page has a stable URL you can bookmark, and everything updates live. Keyboard shortcuts: `n` new task, `p` switch project, `l` / `k` / `h` list / kanban / history, `s` summary, `a` activity, `m` memory, `/` search, `g` overview, `?` help.
+Every page has a stable URL you can bookmark, and everything updates live. Keyboard shortcuts: `n` new task, `p` switch project, `d` dashboard, `l` / `k` / `h` list / kanban / history, `s` summary, `a` activity, `m` memory, `/` search, `g` overview, `?` help.
+
+### Dashboard: the project maps
+
+The **Dashboard** tab draws the project as a map, with the project in the middle. A menu on the side picks the map:
+
+- **Architecture**: the parts of the project and how they fit together. Parts are memory notes of five kinds: components (a module, an area), data (a dataset, a table, a data model, a source), programs (a script, a notebook, a pipeline), studies (an analysis, an experiment, a report) and tools (an external software, service or device). `part_of` links nest them, `depends_on` links say what uses what.
+- **Tasks**: the open tasks, each on the parts it works on, with only those parts and the parts above them. A part with hidden sub-parts can show them, for instance the tables of a data model next to the task that downloads data for one of them.
+- **In progress**: the same, with only the tasks in progress.
+- **Whole memory**: every note, the parts and the knowledge about them (decisions, facts, conventions, gotchas, how-tos, references).
+
+Claude describes the architecture and attaches each task to the parts it works on (`nodes` in `task_create` and `task_update`); the maps follow its changes and the task statuses live. The menu also filters by kind, status, tag and text, with a legend of each kind, changes the layout, and adds a block by hand. Blocks can be moved, and keep their place. Dragging from the dot on a block's edge to another block links them: a task on a part works on it, a task on another task becomes its subtask. Delete removes the selected link or block.
+
+![Architecture map of a project](docs/images/dashboard-architecture.png)
+
+![Tasks in progress on the parts they work on](docs/images/dashboard-tasks.png)
 
 ### Tasks
 
@@ -105,11 +120,9 @@ The **Historique** tab lists the last 100 tasks, most recent first, with a link 
 
 ![History of the last tasks with their deliverables](docs/images/history.png)
 
-### Memory graph
+### Memory
 
-Claude stores durable knowledge as short memory notes (decisions, facts, conventions, components, gotchas, how-tos, references) linked to each other. The memory page shows them as a list with full text, or as a graph laid out automatically (vertical or horizontal hierarchy, or organic). Hovering a note highlights its neighbours. Cards show a thumbnail of the first linked image, such as a chart made with Python, and chips for linked PDFs, videos, HTML pages and tasks, which open in the viewer.
-
-![Memory graph with linked notes and attachments](docs/images/memory-graph.png)
+Claude stores durable knowledge as short memory notes linked to each other. The memory page lists them with their full text and links; the dashboard draws them as maps. Maps are laid out automatically (vertical or horizontal hierarchy, or organic), and hovering a block highlights its neighbours. Cards show a thumbnail of the first linked image, such as a chart made with Python, and chips for linked PDFs, videos, HTML pages and tasks, which open in the viewer.
 
 ### Activity
 
@@ -220,6 +233,6 @@ End-to-end tests use the installed Edge on Windows; on Linux, install Playwright
 | `crates/altium-cli` | The `altium` binary |
 | `crates/altium-server` | Local web server with the embedded front |
 | `crates/altium-mcp` | MCP server for Claude Code |
-| `web/` | Svelte 5 + Vite + TypeScript front, Svelte Flow for the memory graph |
+| `web/` | Svelte 5 + Vite + TypeScript front, Svelte Flow for the dashboard maps |
 | `prototypes/memory-graph` | Standalone Svelte Flow prototype of the memory graph |
 | `openspec/` | Specs and work plan ([OpenSpec](https://github.com/Fission-AI/OpenSpec)) |

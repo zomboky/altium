@@ -3,7 +3,7 @@
 
   import { LINK_LABELS } from '../../lib/format'
   import { floatingEnds } from '../../lib/floating'
-  import type { LinkFlowEdge } from '../../lib/memoryGraph'
+  import type { LinkFlowEdge } from '../../lib/mindmap'
   import { graphView } from './view.svelte'
 
   let {
@@ -46,7 +46,7 @@
   {markerEnd}
   class="memory-link type-{kind} {faded ? 'faded' : ''} {focused ? 'focused' : ''}"
 />
-{#if focused || selected}
+{#if (focused || selected) && kind !== 'root'}
   <EdgeLabel x={geometry[1]} y={geometry[2]} selectEdgeOnClick>
     <span class="edge-chip type-{kind}" title={data?.note ?? undefined}>{LINK_LABELS[kind] ?? kind}</span>
   </EdgeLabel>

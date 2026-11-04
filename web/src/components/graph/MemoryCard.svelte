@@ -4,7 +4,7 @@
   import { KIND_LABELS } from '../../lib/format'
   import { FILE_ICONS, fileHref, fileKind, fileName } from '../../lib/files'
   import { t } from '../../lib/i18n.svelte'
-  import type { CardFlowNode } from '../../lib/memoryGraph'
+  import type { CardFlowNode } from '../../lib/mindmap'
   import { href, link } from '../../lib/router.svelte'
   import { graphView } from './view.svelte'
 
@@ -16,7 +16,7 @@
 </script>
 
 <NodeToolbar position={Position.Top} offset={8}>
-  <div class="toolbar">
+  <div class="map-toolbar">
     <a class="button" href={nodeHref} onclick={link}>{t('Read', 'Lire')}</a>
     <button onclick={() => view.pin(id, !node.pinned)}>{node.pinned ? t('Unpin', 'Désépingler') : t('Pin', 'Épingler')}</button>
     <button onclick={() => view.centre(id)} title={t('Zoom to this node', 'Zoomer sur ce nœud')}>{t('Centre', 'Centrer')}</button>
@@ -24,7 +24,7 @@
 </NodeToolbar>
 
 <!-- Links go from the specific node up to the broader one. -->
-<Handle type="source" position={view.vertical ? Position.Top : Position.Left} isConnectable={false} />
+<Handle type="source" position={view.vertical ? Position.Top : Position.Left} />
 
 <div
   class="card kind-{node.kind}"
@@ -73,9 +73,19 @@
   {#if node.tags.length > 0}
     <div class="tags">{#each node.tags as tag (tag)}<span>#{tag}</span>{/each}</div>
   {/if}
+
+  {#if data.hiddenParts > 0 || data.expanded}
+    <button class="parts nodrag" onclick={() => view.expand(id)} data-testid="expand">
+      {data.expanded
+        ? t('Hide the other parts', 'Masquer les autres parties')
+        : data.hiddenParts > 1
+          ? t(`Show its ${data.hiddenParts} parts`, `Voir ses ${data.hiddenParts} parties`)
+          : t('Show its part', 'Voir sa partie')}
+    </button>
+  {/if}
 </div>
 
-<Handle type="target" position={view.vertical ? Position.Bottom : Position.Right} isConnectable={false} />
+<Handle type="target" position={view.vertical ? Position.Bottom : Position.Right} />
 
 <style>
   .card {
@@ -156,7 +166,8 @@
   .preview img {
     display: block;
     width: 100%;
-    max-height: 120px;
+    /* Fixed: the card keeps its size while the image loads. */
+    height: 110px;
     object-fit: contain;
   }
 
@@ -201,29 +212,19 @@
     color: var(--muted);
   }
 
-  .toolbar {
-    display: flex;
-    gap: 0.25rem;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 0.2rem;
-    box-shadow: var(--shadow);
-    font-size: 0.8rem;
-  }
-
-  .toolbar button,
-  .toolbar .button {
-    border: none;
-    padding: 0.15rem 0.5rem;
+  .parts {
+    display: block;
+    width: 100%;
+    margin-top: 0.45rem;
+    padding: 0.15rem 0.4rem;
+    font-size: 0.74rem;
+    border: 1px dashed var(--kind);
     border-radius: 6px;
     background: none;
-    color: var(--text);
+    color: var(--kind);
   }
 
-  .toolbar button:hover,
-  .toolbar .button:hover {
+  .parts:hover {
     background: var(--surface-2);
-    text-decoration: none;
   }
 </style>

@@ -63,13 +63,60 @@ export function seed() {
   replay(10)
   const soon = new Date(Date.now() + 24 * 3600 * 1000).toISOString().slice(0, 10)
   const past = new Date(Date.now() - 2 * 24 * 3600 * 1000).toISOString().slice(0, 10)
+  const node = (id: string, kind: string, title: string, desc: string, links: { to: string; type: string }[] = []) => ({
+    name: 'memory_put',
+    arguments: { id, kind, title, desc, body: `${desc}.`, links },
+  })
   mcp([
     { name: 'status_set', arguments: { phase: 'development', summary: 'Dashboard prototype: the API is ready, the front is in progress.' } },
-    { name: 'task_create', arguments: { title: 'Write the REST API', priority: 'P1', tags: ['api'], status: 'doing' } },
-    { name: 'task_create', arguments: { title: 'Wire the SSE stream', priority: 'P1', tags: ['api'], due: soon } },
-    { name: 'task_create', arguments: { title: 'Kanban board', priority: 'P2', tags: ['front'] } },
+    // The architecture: the parts of the project and what they use.
+    node('axum-server', 'component', 'axum server and SSE stream', 'REST API + real-time events on /api/stream'),
+    node('front', 'component', 'Svelte dashboard', 'Pages, kanban and maps in Svelte 5', [{ to: 'axum-server', type: 'depends_on' }]),
+    node('store', 'data', '.altium/ store', 'Tasks, status and memory as plain files'),
+    node('tasks-file', 'data', 'tasks.jsonl', 'One task per line, sorted by id', [{ to: 'store', type: 'part_of' }]),
+    node('memory-files', 'data', 'memory/*.md', 'One Markdown file per memory node', [{ to: 'store', type: 'part_of' }]),
+    node('load-simulator', 'program', 'Load simulator', 'Replays requests against the server', [
+      { to: 'axum-server', type: 'depends_on' },
+      { to: 'file:figures/simulation.html', type: 'relates_to' },
+    ]),
+    node('latency-study', 'study', 'Latency study', 'p95 latency of the API under load', [
+      { to: 'load-simulator', type: 'depends_on' },
+      { to: 'file:figures/latency.svg', type: 'relates_to' },
+      { to: 'file:deliverables/report.pdf', type: 'relates_to' },
+    ]),
+    node('playwright', 'tool', 'Playwright', 'Drives a browser for the end-to-end tests', [{ to: 'front', type: 'relates_to' }]),
+    // The tasks, on the parts they work on.
+    { name: 'task_create', arguments: { title: 'Write the REST API', priority: 'P1', tags: ['api'], status: 'doing', nodes: ['axum-server'] } },
+    { name: 'task_create', arguments: { title: 'Wire the SSE stream', priority: 'P1', tags: ['api'], due: soon, nodes: ['axum-server', 'front'] } },
+    { name: 'task_create', arguments: { title: 'Kanban board', priority: 'P2', tags: ['front'], nodes: ['front'] } },
     { name: 'task_create', arguments: { title: 'Drag and drop', parent: 'T-3', tags: ['front'] } },
-    { name: 'task_create', arguments: { title: 'Dark theme', priority: 'P3', tags: ['front'], due: past } },
+    { name: 'task_create', arguments: { title: 'Dark theme', priority: 'P3', tags: ['front'], due: past, nodes: ['front'] } },
+    { name: 'task_create', arguments: { title: 'Performance report', deliverable: 'deliverables/report.pdf', nodes: ['latency-study'] } },
+    { name: 'task_update', arguments: { id: 'T-6', status: 'done' } },
+    {
+      name: 'task_create',
+      arguments: { title: 'Measure the p95 latency', tags: ['perf'], deliverable: 'figures/latency.svg', nodes: ['latency-study'] },
+    },
+    { name: 'task_update', arguments: { id: 'T-7', status: 'done' } },
+    {
+      name: 'task_create',
+      arguments: { title: 'Simulate the server load', tags: ['perf'], deliverable: 'figures/simulation.html', nodes: ['load-simulator'] },
+    },
+    { name: 'task_update', arguments: { id: 'T-8', status: 'done' } },
+    {
+      name: 'task_create',
+      arguments: { title: 'Pick the database', priority: 'P1', status: 'blocked', blocked_reason: 'Waiting for the hosting budget', nodes: ['store'] },
+    },
+    {
+      name: 'task_create',
+      arguments: {
+        title: 'Download a week of production logs to confirm the latency correlation',
+        tags: ['perf'],
+        status: 'doing',
+        nodes: ['latency-study'],
+      },
+    },
+    // What is known about the parts.
     {
       name: 'memory_put',
       arguments: {
@@ -79,6 +126,7 @@ export function seed() {
         desc: 'Tokens signed with HS256, valid for 15 min',
         body: 'Tokens are signed with HS256.\nLifetime: 15 minutes.',
         tags: ['auth'],
+        links: [{ to: 'axum-server', type: 'relates_to' }],
       },
     },
     {
@@ -91,6 +139,7 @@ export function seed() {
         body: 'The refresh token lives 30 days and can be used once.',
         tags: ['auth', 'api'],
         links: [
+          { to: 'axum-server', type: 'part_of' },
           { to: 'auth-jwt', type: 'depends_on' },
           { to: 'task:T-1', type: 'relates_to' },
           { to: 'old-node', type: 'relates_to' },
@@ -107,20 +156,13 @@ export function seed() {
         body: 'Measured on the dev machine; see the figure and the simulation.',
         tags: ['api', 'perf'],
         links: [
-          { to: 'api-refresh-token', type: 'relates_to' },
+          { to: 'latency-study', type: 'relates_to' },
           { to: 'file:figures/latency.svg', type: 'relates_to', note: 'plotted with matplotlib' },
           { to: 'file:figures/simulation.html', type: 'relates_to' },
           { to: 'file:deliverables/report.pdf', type: 'relates_to' },
         ],
       },
     },
-    { name: 'task_create', arguments: { title: 'Performance report', deliverable: 'deliverables/report.pdf' } },
-    { name: 'task_update', arguments: { id: 'T-6', status: 'done' } },
-    { name: 'task_create', arguments: { title: 'Measure the p95 latency', tags: ['perf'], deliverable: 'figures/latency.svg' } },
-    { name: 'task_update', arguments: { id: 'T-7', status: 'done' } },
-    { name: 'task_create', arguments: { title: 'Simulate the server load', tags: ['perf'], deliverable: 'figures/simulation.html' } },
-    { name: 'task_update', arguments: { id: 'T-8', status: 'done' } },
-    { name: 'task_create', arguments: { title: 'Pick the database', priority: 'P1', status: 'blocked', blocked_reason: 'Waiting for the hosting budget' } },
     {
       name: 'memory_put',
       arguments: {
@@ -134,25 +176,13 @@ export function seed() {
     {
       name: 'memory_put',
       arguments: {
-        id: 'axum-server',
-        kind: 'component',
-        title: 'axum server and SSE stream',
-        desc: 'REST API + real-time events on /api/stream',
-        body: 'The server watches the files and pushes every change.',
-        tags: ['api'],
-        links: [{ to: 'goal', type: 'part_of' }],
-      },
-    },
-    {
-      name: 'memory_put',
-      arguments: {
         id: 'json-errors',
         kind: 'convention',
         title: 'API errors in JSON',
         desc: 'Always { error, code } with the right HTTP status',
         body: '409 for an edit conflict, 422 for an invalid value.',
         tags: ['api'],
-        links: [{ to: 'axum-server', type: 'part_of' }],
+        links: [{ to: 'axum-server', type: 'relates_to' }],
       },
     },
     {
@@ -163,7 +193,7 @@ export function seed() {
         title: 'The dev proxy buffers the SSE stream',
         desc: 'Turn off compression in the Vite proxy for /api/stream',
         body: 'Otherwise the events arrive in batches.',
-        links: [{ to: 'axum-server', type: 'depends_on' }],
+        links: [{ to: 'axum-server', type: 'relates_to' }],
       },
     },
     {
@@ -177,8 +207,6 @@ export function seed() {
         links: [{ to: 'goal', type: 'relates_to' }],
       },
     },
-    { name: 'memory_link', arguments: { from: 'auth-jwt', to: 'axum-server', type: 'part_of' } },
-    { name: 'memory_link', arguments: { from: 'latency-measurement', to: 'axum-server', type: 'relates_to' } },
   ])
   for (const [path, content] of Object.entries(FILES)) {
     mkdirSync(join(PROJECT, path, '..'), { recursive: true })

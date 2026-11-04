@@ -243,3 +243,106 @@ async fn shutdown_stops_the_server() {
     tokio::time::sleep(Duration::from_millis(300)).await;
     assert!(TcpStream::connect(("127.0.0.1", server.port)).await.is_err());
 }
+
+#[tokio::test]
+async fn dashboard_blocks_links_and_layout() {
+    let server = start().await;
+    let port = server.port;
+    let base = format!("/api/projects/{}", server.project);
+
+    let memory = format!("{base}/memory");
+    let create = |body: Value| request(port, "POST", &memory, &[], Some(body));
+    let (status, body) = create(json!({"kind": "data", "title": "Data model"})).await;
+    assert_eq!(status, 201, "{body}");
+    assert_eq!(serde_json::from_str::<Value>(&body).unwrap()["id"], "data-model");
+    let (status, body) = create(json!({"kind": "data", "title": "Météo ERA5", "parent": "data-model"})).await;
+    assert_eq!(status, 201, "{body}");
+    let (status, _) = create(json!({"kind": "data", "title": "x", "parent": "ghost"})).await;
+    assert_eq!(status, 404);
+    let (status, _) = create(json!({"kind": "data", "title": "  "})).await;
+    assert_eq!(status, 422);
+
+    request(
+        port,
+        "POST",
+        &format!("{base}/tasks"),
+        &[],
+        Some(json!({"title": "Télécharger 2010"})),
+    )
+    .await;
+    let links = format!("{base}/memory/meteo-era5/links");
+    let (status, body) = request(
+        port,
+        "POST",
+        &links,
+        &[],
+        Some(json!({"to": "task:T-1", "type": "relates_to"})),
+    )
+    .await;
+    assert_eq!(status, 204, "{body}");
+    let (status, _) = request(
+        port,
+        "POST",
+        &links,
+        &[],
+        Some(json!({"to": "task:T-9", "type": "relates_to"})),
+    )
+    .await;
+    assert_eq!(status, 404);
+    let (_, body) = request(port, "GET", &format!("{base}/memory-graph"), &[], None).await;
+    assert!(body.contains("\"part_of\"") && body.contains("\"T-1\""), "{body}");
+    let (status, _) = request(port, "DELETE", &format!("{links}?to=task:T-1"), &[], None).await;
+    assert_eq!(status, 204);
+
+    let (status, _) = request(
+        port,
+        "PUT",
+        &format!("{base}/memory/meteo-era5"),
+        &[],
+        Some(json!({"title": "Météo ERA5 horaire"})),
+    )
+    .await;
+    assert_eq!(status, 204);
+    let (status, _) = request(
+        port,
+        "PUT",
+        &format!("{base}/memory/ghost"),
+        &[],
+        Some(json!({"title": "x"})),
+    )
+    .await;
+    assert_eq!(status, 404);
+    // Linked from meteo-era5: deleting data-model needs a confirmation.
+    let (status, _) = request(port, "DELETE", &format!("{base}/memory/data-model"), &[], None).await;
+    assert_eq!(status, 422);
+    let (status, _) = request(
+        port,
+        "DELETE",
+        &format!("{base}/memory/data-model?force=true"),
+        &[],
+        None,
+    )
+    .await;
+    assert_eq!(status, 204);
+
+    let layout = format!("{base}/layout/architecture");
+    let save = |body: Value| request(port, "PUT", &layout, &[], Some(body));
+    assert_eq!(
+        save(json!({"positions": {"meteo-era5": [10.5, -3.0], "task:T-1": [0, 0]}}))
+            .await
+            .0,
+        204
+    );
+    assert_eq!(save(json!({"positions": {"task:T-1": null}})).await.0, 204);
+    let (_, body) = request(port, "GET", &layout, &[], None).await;
+    assert_eq!(
+        serde_json::from_str::<Value>(&body).unwrap(),
+        json!({"positions": {"meteo-era5": [10.5, -3.0]}})
+    );
+    assert_eq!(save(json!({"reset": true})).await.0, 204);
+    let (_, body) = request(port, "GET", &layout, &[], None).await;
+    assert_eq!(body, r#"{"positions":{}}"#);
+    let (status, _) = request(port, "GET", &format!("{base}/layout/..%2Fx"), &[], None).await;
+    assert_eq!(status, 404);
+    assert!(server.root.join(".altium/memory/meteo-era5.md").exists());
+}

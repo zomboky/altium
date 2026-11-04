@@ -59,6 +59,7 @@ export const SHORTCUTS: [string, string, string][] = [
   ['h', 'Task history', 'Historique des tasks'],
   ['/', 'Search', 'Rechercher'],
   ['s', 'Project summary', 'Synthèse du projet'],
+  ['d', 'Dashboard: the project maps', 'Dashboard : les cartes du projet'],
   ['a', 'Activity', 'Activité'],
   ['m', 'Memory', 'Mémoire'],
   ['g', 'Overview', 'Vue d’ensemble'],

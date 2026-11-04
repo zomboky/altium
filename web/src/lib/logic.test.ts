@@ -4,7 +4,8 @@ import type { GraphNode, Link, ProjectCard, Task } from './api/types'
 import { fileHref, fileKind } from './files'
 import { formatDeadline, parseDeadline, relative } from './format'
 import { setLang } from './i18n.svelte'
-import { buildGraph } from './memoryGraph'
+import { defaultFilters } from './maps'
+import { ROOT, type CardFlowNode, buildMap } from './mindmap'
 import { sortProjects } from './overview'
 import { href, parse } from './router.svelte'
 import {
@@ -205,10 +206,10 @@ describe('overview', () => {
   })
 })
 
-describe('memory graph', () => {
-  const line = (id: string, links: GraphNode['links']): GraphNode => ({
+describe('maps', () => {
+  const line = (id: string, kind: GraphNode['kind'], links: GraphNode['links'] = []): GraphNode => ({
     id,
-    kind: 'fact',
+    kind,
     title: id,
     description: '',
     tags: [],
@@ -219,27 +220,81 @@ describe('memory graph', () => {
     contradicts: [],
     links,
   })
-  const to = (target_type: Link['target_type'], target: string, broken = false): Link => ({
-    kind: 'relates_to',
+  const to = (target_type: Link['target_type'], target: string, kind = 'relates_to', broken = false): Link => ({
+    kind,
     target_type,
     target,
     title: null,
     note: null,
     broken,
   })
+  // The data model holds two tables; T-1 works on the weather table.
+  const memory = [
+    line('data-model', 'data'),
+    line('weather', 'data', [to('node', 'data-model', 'part_of'), to('task', 'T-1'), to('file', 'fig/courbe.svg')]),
+    line('parcels', 'data', [to('node', 'data-model', 'part_of')]),
+    line('era5-gotcha', 'gotcha', [to('node', 'weather')]),
+    line('b', 'fact', [to('file', 'fig/manquant.png', 'relates_to', true), to('url', 'https://exemple.org')]),
+  ]
+  const tasks = [
+    task('T-1', { status: 'doing' }),
+    task('T-2'),
+    task('T-3', { parent: 'T-1' }),
+    task('T-4', { status: 'done' }),
+  ]
+  const build = (map: 'architecture' | 'tasks' | 'doing' | 'memory', change = {}) =>
+    buildMap({ map, filters: { ...defaultFilters(map), ...change }, nodes: memory, tasks, name: 'Demo', phase: null })
+  const ids = (graph: ReturnType<typeof build>) => graph.nodes.map((n) => n.id)
+  const edgeIds = (graph: ReturnType<typeof build>) => graph.edges.map((e) => e.id)
 
-  it('draws node links as edges and keeps files, URLs and tasks in the card', () => {
-    const { nodes, edges } = buildGraph([
-      line('a', [to('node', 'b'), to('node', 'absent'), to('file', 'fig/courbe.svg'), to('task', 'T-1')]),
-      line('b', [to('file', 'fig/manquant.png', true), to('url', 'https://exemple.org')]),
+  it('draws the parts of the project under the project', () => {
+    const graph = build('architecture')
+    expect(ids(graph)).toEqual([ROOT, 'data-model', 'weather', 'parcels'])
+    expect(edgeIds(graph)).toEqual([
+      `data-model->${ROOT}:root`,
+      'weather->data-model:part_of',
+      'parcels->data-model:part_of',
     ])
-    expect(edges.map((e) => e.id)).toEqual(['a->b:relates_to'])
-    expect(nodes[0].data.attachments.map((l) => l.target)).toEqual(['fig/courbe.svg', 'T-1'])
-    expect(nodes[0].data.preview).toBe('fig/courbe.svg')
-    // A broken image gets no thumbnail.
-    expect(nodes[1].data.preview).toBeNull()
+    // Files and tasks stay in the card.
+    const weather = graph.nodes[2] as CardFlowNode
+    expect(weather.data.attachments.map((l) => l.target)).toEqual(['T-1', 'fig/courbe.svg'])
+    expect(weather.data.preview).toBe('fig/courbe.svg')
   })
 
+  it('keeps the knowledge on the whole memory map', () => {
+    const graph = build('memory')
+    expect(ids(graph)).toContain('era5-gotcha')
+    expect(edgeIds(graph)).toContain('era5-gotcha->weather:relates_to')
+    // A broken image gets no thumbnail.
+    expect((graph.nodes.find((n) => n.id === 'b') as CardFlowNode).data.preview).toBeNull()
+  })
+
+  it('puts the open tasks on the parts they work on, and only those parts', () => {
+    const graph = build('tasks')
+    expect(ids(graph)).toEqual([ROOT, 'data-model', 'weather', 'task:T-1', 'task:T-2', 'task:T-3'])
+    expect(edgeIds(graph)).toContain('task:T-1->weather:works_on')
+    expect(edgeIds(graph)).toContain('task:T-3->task:T-1:subtask')
+    expect(edgeIds(graph)).toContain(`task:T-2->${ROOT}:root`)
+    // The task link is drawn as an edge, not repeated in the card.
+    const model = graph.nodes[1] as CardFlowNode
+    expect(model.data.hiddenParts).toBe(1)
+    const weather = graph.nodes[2] as CardFlowNode
+    expect(weather.data.attachments.map((l) => l.target)).toEqual(['fig/courbe.svg'])
+    // The part the edge removes the link from.
+    expect(graph.edges.find((e) => e.id === 'task:T-1->weather:works_on')!.data).toMatchObject({ from: 'weather', to: 'task:T-1' })
+  })
+
+  it('shows the sub-parts of an expanded part, or every part', () => {
+    expect(ids(build('tasks', { expanded: ['data-model'] }))).toContain('parcels')
+    expect(ids(build('tasks', { whole: true }))).toContain('parcels')
+  })
+
+  it('shows only the tasks in progress on their map', () => {
+    expect(ids(build('doing'))).toEqual([ROOT, 'data-model', 'weather', 'task:T-1'])
+  })
+})
+
+describe('files', () => {
   it('classifies files and builds their URL', () => {
     expect(fileKind('rapport/fiche.PDF')).toBe('pdf')
     expect(fileKind('https://exemple.org/x.pdf')).toBe('url')

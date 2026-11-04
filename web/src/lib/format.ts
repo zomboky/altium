@@ -24,13 +24,32 @@ export const DEADLINE_LABELS = labels<DeadlineState>({
 })
 
 export const KIND_LABELS = labels<NodeKind>({
+  component: ['Component', 'Composant'],
+  data: ['Data', 'Données'],
+  program: ['Program', 'Programme'],
+  study: ['Study', 'Étude'],
+  tool: ['Tool', 'Outil'],
   decision: ['Decision', 'Décision'],
   fact: ['Fact', 'Fait'],
   convention: ['Convention', 'Convention'],
-  component: ['Component', 'Composant'],
   gotcha: ['Gotcha', 'Piège'],
   howto: ['How-to', 'Mode d’emploi'],
   reference: ['Reference', 'Référence'],
+})
+
+/** What each kind of node holds, for the legends. */
+export const KIND_HELP = labels<NodeKind>({
+  component: ['A module or an area of the project', 'Un module ou une partie du projet'],
+  data: ['A dataset, a table, a data model or a source', 'Un jeu de données, une table, un data model ou une source'],
+  program: ['A script, a notebook, a pipeline or an app', 'Un script, un notebook, un pipeline ou une appli'],
+  study: ['An analysis, an experiment or a report', 'Une analyse, une expérience ou un rapport'],
+  tool: ['An external software, service or device', 'Un logiciel, un service ou un matériel externe'],
+  decision: ['A choice that was made, and why', 'Un choix qui a été fait, et pourquoi'],
+  fact: ['Something established: a measure, a result', 'Un fait établi : une mesure, un résultat'],
+  convention: ['A rule the project follows', 'Une règle que suit le projet'],
+  gotcha: ['A trap to avoid', 'Un piège à éviter'],
+  howto: ['The steps to do something', 'Les étapes pour faire quelque chose'],
+  reference: ['Where to find something: a doc, a source', 'Où trouver quelque chose : une doc, une source'],
 })
 
 export const LINK_LABELS: Record<string, string> = labels({
@@ -41,6 +60,8 @@ export const LINK_LABELS: Record<string, string> = labels({
   supersedes: ['supersedes', 'remplace'],
   contradicts: ['contradicts', 'contredit'],
   relates_to: ['relates to', 'en lien avec'],
+  works_on: ['works on', 'travaille sur'],
+  subtask: ['subtask of', 'sous-tâche de'],
 })
 
 function formats(tag: string) {

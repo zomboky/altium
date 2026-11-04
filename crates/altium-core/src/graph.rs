@@ -413,6 +413,10 @@ pub fn kind_name(kind: NodeKind) -> &'static str {
         NodeKind::Gotcha => "gotcha",
         NodeKind::Howto => "howto",
         NodeKind::Reference => "reference",
+        NodeKind::Data => "data",
+        NodeKind::Program => "program",
+        NodeKind::Study => "study",
+        NodeKind::Tool => "tool",
     }
 }
 

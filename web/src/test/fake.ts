@@ -126,6 +126,17 @@ export class FakeApi implements Api {
     throw new ApiError(404, { error: 'introuvable' })
   }
   async pin() {}
+  async createNode() {
+    return 'node'
+  }
+  async updateNode() {}
+  async deleteNode() {}
+  async link() {}
+  async unlink() {}
+  async layout() {
+    return {}
+  }
+  async saveLayout() {}
   async git() {
     return null
   }

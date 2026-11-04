@@ -114,7 +114,7 @@ Rotation happens in `refresh()`.
 
 | Clé | Contenu |
 |---|---|
-| `kind` | `decision`, `fact`, `convention`, `component`, `gotcha`, `howto` ou `reference` |
+| `kind` | connaissance : `decision`, `fact`, `convention`, `gotcha`, `howto` ou `reference` ; architecture (les parties du projet, dessinées sur la carte d'architecture du dashboard) : `component`, `data`, `program`, `study` ou `tool` |
 | `title` | titre |
 | `desc` | description d'une ligne, affichée dans l'index de la mémoire |
 | `tags` | étiquettes, omise si vide |
@@ -131,7 +131,7 @@ Chaque lien a une cible `to`, un type `type` et une `note` optionnelle.
   - un fichier ou un dossier du projet : `file:src/auth/` ;
   - une URL : `https://…`.
 
-Les dates de dernier accès et les compteurs de chargement des nœuds ne sont pas stockés dans ces fichiers mais dans `runtime/`. Ils changent trop souvent pour être versionnés.
+Les positions des blocs déplacés à la main sur les cartes du dashboard sont dans `runtime/layout.json`, une par carte. Les dates de dernier accès et les compteurs de chargement des nœuds ne sont pas stockés dans ces fichiers mais dans `runtime/`. Ils changent trop souvent pour être versionnés.
 
 ## Garanties d'écriture
 

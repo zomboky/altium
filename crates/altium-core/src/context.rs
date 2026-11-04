@@ -32,6 +32,7 @@ pub fn instructions(memory_lang: &str) -> String {
          - Tasks: set status doing when you start, done when finished, blocked with a reason; create tasks for new work; never delete, cancel instead; when a task produces a file or page (report, figure, export, video), set its deliverable to that path or URL.\n\
          - Status: after meaningful progress, update the summary (where things stand, next step, blockers) with status_set.\n\
          - Memory: load nodes with memory_get (follow depends_on for prerequisites); save durable knowledge as short nodes linked to others with memory_put and memory_link.\n\
+         - Architecture: describe the project's parts as memory nodes of kind component (module, area), data (dataset, table, data model, source), program (script, notebook, pipeline, app), study (analysis, experiment, report) or tool (external software, service, device); link each with part_of to the part it belongs to and depends_on to what it uses. When you create or update a task, pass nodes with the ids of the parts it works on, creating the missing parts first.\n\
          - {}",
         language_instruction(memory_lang)
     )

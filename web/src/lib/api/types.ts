@@ -171,8 +171,36 @@ export interface Stats {
   files: [string, number][]
 }
 
-export type NodeKind = 'decision' | 'fact' | 'convention' | 'component' | 'gotcha' | 'howto' | 'reference'
-export const NODE_KINDS: NodeKind[] = ['decision', 'fact', 'convention', 'component', 'gotcha', 'howto', 'reference']
+/** The project's parts, drawn on the architecture map. */
+export type ArchitectureKind = 'component' | 'data' | 'program' | 'study' | 'tool'
+/** Knowledge about the project and its parts. */
+export type KnowledgeKind = 'decision' | 'fact' | 'convention' | 'gotcha' | 'howto' | 'reference'
+export type NodeKind = ArchitectureKind | KnowledgeKind
+export const ARCHITECTURE_KINDS: ArchitectureKind[] = ['component', 'data', 'program', 'study', 'tool']
+export const KNOWLEDGE_KINDS: KnowledgeKind[] = ['decision', 'fact', 'convention', 'gotcha', 'howto', 'reference']
+export const NODE_KINDS: NodeKind[] = [...ARCHITECTURE_KINDS, ...KNOWLEDGE_KINDS]
+
+export function isArchitecture(kind: NodeKind): kind is ArchitectureKind {
+  return (ARCHITECTURE_KINDS as NodeKind[]).includes(kind)
+}
+
+export type LinkType =
+  | 'depends_on'
+  | 'implies'
+  | 'equivalent_to'
+  | 'part_of'
+  | 'supersedes'
+  | 'contradicts'
+  | 'relates_to'
+export const LINK_TYPES: LinkType[] = [
+  'part_of',
+  'depends_on',
+  'relates_to',
+  'implies',
+  'equivalent_to',
+  'supersedes',
+  'contradicts',
+]
 
 export interface NodeLine {
   id: string
@@ -237,6 +265,29 @@ export interface TaskFields {
 export type TaskPatch = { [K in keyof TaskFields]?: { base: TaskFields[K]; value: TaskFields[K] } } & {
   force?: boolean
 }
+
+/** A node made from the dashboard; its id comes from its title. */
+export interface NewNode {
+  kind: NodeKind
+  title: string
+  description?: string
+  tags?: string[]
+  /** The node it is part of. */
+  parent?: string | null
+  /** A task working on it. */
+  task?: string | null
+}
+
+export interface NodeChange {
+  kind?: NodeKind
+  title?: string
+  description?: string
+  body?: string
+  tags?: string[]
+}
+
+/** Positions of the blocks moved by hand on a map: `[x, y]` by block id. */
+export type Positions = Record<string, [number, number]>
 
 export interface MemoryFilter {
   text?: string

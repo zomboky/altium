@@ -22,6 +22,25 @@ pub enum NodeKind {
     Gotcha,
     Howto,
     Reference,
+    /// A dataset, a table, a data model or a data source.
+    Data,
+    /// A script, a notebook, a pipeline or an application.
+    Program,
+    /// An analysis, an experiment or a report.
+    Study,
+    /// An external software, service, library or device.
+    Tool,
+}
+
+impl NodeKind {
+    /// The kinds that describe the project's parts, drawn on the
+    /// dashboard's architecture map; the others are knowledge about them.
+    pub fn is_architecture(self) -> bool {
+        matches!(
+            self,
+            NodeKind::Component | NodeKind::Data | NodeKind::Program | NodeKind::Study | NodeKind::Tool
+        )
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]

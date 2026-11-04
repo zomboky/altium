@@ -160,11 +160,87 @@ test('deliverables: shown from the task form, the history and the memory graph',
   await page.getByTestId('file-viewer').getByRole('button', { name: 'Fermer' }).click()
   await expect(page.getByTestId('history-row').filter({ hasText: 'Livrable à venir' }).getByTestId('file-link')).toHaveCount(0)
 
-  await page.goto(`/projects/${id}/memory?view=graph`)
+  await page.goto(`/projects/${id}/dashboard?map=memory`)
   const card = page.getByTestId('graph-card').filter({ hasText: 'Résultat de la courbe' })
   await expect(card.locator('img')).toBeVisible()
   await card.getByRole('button', { name: /carte\.html/ }).click()
   const frame = page.getByTestId('file-viewer').locator('iframe')
   await expect(frame).toHaveAttribute('sandbox', /allow-scripts/)
   await expect(page.frameLocator('[data-testid=file-viewer] iframe').getByRole('heading', { name: 'Carte interactive' })).toBeVisible()
+})
+
+test('dashboard: tasks on the parts they work on, live; blocks added, moved, linked and deleted', async ({ page, request }) => {
+  const id = await projectId(request)
+  const part = (key: string, title: string, links: { to: string; type: string }[] = []) => ({
+    name: 'memory_put',
+    arguments: { id: key, kind: 'data', title, desc: title, body: 'Corps.', links },
+  })
+  mcp([
+    part('modele-donnees', 'Data model'),
+    part('table-meteo', 'Table météo', [{ to: 'modele-donnees', type: 'part_of' }]),
+    part('table-parcelles', 'Table parcelles', [{ to: 'modele-donnees', type: 'part_of' }]),
+  ])
+  const card = (title: string) => page.getByTestId('graph-card').filter({ hasText: title })
+
+  await page.goto(`/projects/${id}/dashboard?map=doing`)
+  await expect(page.getByTestId('graph-root')).toBeVisible()
+  // Claude starts a task on the weather table: it shows up, with the data model above it.
+  const [created] = mcp([
+    { name: 'task_create', arguments: { title: 'Télécharger 2010-2015 pour la corrélation', status: 'doing', nodes: ['table-meteo'] } },
+  ]) as { content: { text: string }[] }[]
+  const taskId = created.content[0].text.match(/T-\d+/)![0]
+  const task = page.getByTestId('graph-task').filter({ hasText: 'Télécharger 2010-2015' })
+  await expect(task).toBeVisible({ timeout: 3000 })
+  await expect(card('Data model')).toBeVisible()
+  await expect(card('Table parcelles')).toHaveCount(0)
+  // The data model shows its other table on demand.
+  await card('Data model').getByTestId('expand').click()
+  await expect(card('Table parcelles')).toBeVisible()
+  // Done: it leaves the in-progress map.
+  mcp([{ name: 'task_update', arguments: { id: taskId, status: 'done' } }])
+  await expect(task).toHaveCount(0, { timeout: 3000 })
+
+  // On the architecture map, a block added by hand under the data model.
+  await page.getByTestId('map-architecture').click()
+  await expect(card('Table parcelles')).toBeVisible()
+  await page.getByText('Ajouter un bloc').click()
+  const form = page.locator('details form')
+  await form.getByLabel('Type').selectOption('program')
+  await form.getByLabel('Titre').fill('Script de téléchargement')
+  await form.getByLabel('Fait partie de').selectOption('modele-donnees')
+  await form.getByRole('button', { name: 'Ajouter' }).click()
+  const added = card('Script de téléchargement')
+  await expect(added).toBeVisible()
+
+  // Moved by hand: its place is kept.
+  const box = (await added.boundingBox())!
+  await page.mouse.move(box.x + 60, box.y + 12)
+  await page.mouse.down()
+  await page.mouse.move(box.x + 60, box.y - 120, { steps: 8 })
+  await page.mouse.up()
+  const layout = async () => (await (await request.get(`/api/projects/${id}/layout/architecture`)).json()).positions
+  await expect.poll(async () => Object.keys(await layout())).toContain('script-de-telechargement')
+
+  // Linked by hand: from its handle to the weather table, as « dépend de ».
+  await page.getByLabel('Type des nouveaux liens').selectOption('depends_on')
+  const from = page.locator('.svelte-flow__node[data-id="script-de-telechargement"] .svelte-flow__handle').first()
+  const to = page.locator('.svelte-flow__node[data-id="table-meteo"] .svelte-flow__handle').first()
+  await added.hover()
+  const a = (await from.boundingBox())!
+  const b = (await to.boundingBox())!
+  await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 12 })
+  await page.mouse.up()
+  const links = async () =>
+    (await (await request.get(`/api/projects/${id}/memory/script-de-telechargement`)).json()).links.map(
+      (l: { kind: string; target: string }) => `${l.kind} ${l.target}`,
+    )
+  await expect.poll(links).toContain('depends_on table-meteo')
+
+  // Deleted from the selected block's panel, after a confirmation.
+  await added.click({ position: { x: 20, y: 10 } })
+  page.once('dialog', (dialog) => dialog.accept())
+  await page.getByTestId('inspector').getByRole('button', { name: 'Supprimer' }).click()
+  await expect(added).toHaveCount(0)
 })

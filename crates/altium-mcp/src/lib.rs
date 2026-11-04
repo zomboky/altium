@@ -216,6 +216,8 @@ struct TaskCreate {
     blocked_reason: Option<String>,
     note: Option<String>,
     deliverable: Option<String>,
+    #[serde(default)]
+    nodes: Vec<String>,
 }
 
 #[derive(Deserialize)]
@@ -231,6 +233,8 @@ struct TaskUpdate {
     blocked_reason: Option<String>,
     note: Option<Value>,
     deliverable: Option<Value>,
+    #[serde(default)]
+    nodes: Vec<String>,
     #[serde(default)]
     force: bool,
 }
@@ -408,10 +412,16 @@ impl Tool<'_> {
             note: args.note,
             deliverable: args.deliverable,
         };
+        ops::check_nodes(self.store, &args.nodes).map_err(op_error)?;
         let task = ops::create_task(self.store, new, &self.actor, &self.clock).map_err(task_error)?;
+        ops::attach_task(self.store, &args.nodes, task.id, &self.actor, &self.clock).map_err(op_error)?;
         let all = self.store.tasks().map_err(store_error)?;
         let near = self.project()?.config.near_hours();
-        Ok(format!("created {}", render::task_line(&task, &all, &self.clock, near)))
+        Ok(format!(
+            "created {}{}",
+            render::task_line(&task, &all, &self.clock, near),
+            attached(&args.nodes)
+        ))
     }
 
     fn task_update(&self, args: TaskUpdate) -> Result<String, String> {
@@ -442,11 +452,17 @@ impl Tool<'_> {
             note: text_field(&args.note, "note")?,
             deliverable: text_field(&args.deliverable, "deliverable")?,
         };
+        ops::check_nodes(self.store, &args.nodes).map_err(op_error)?;
         let task =
             ops::update_task(self.store, args.id, &patch, args.force, &self.actor, &self.clock).map_err(task_error)?;
+        ops::attach_task(self.store, &args.nodes, task.id, &self.actor, &self.clock).map_err(op_error)?;
         let all = self.store.tasks().map_err(store_error)?;
         let near = self.project()?.config.near_hours();
-        Ok(format!("updated {}", render::task_line(&task, &all, &self.clock, near)))
+        Ok(format!(
+            "updated {}{}",
+            render::task_line(&task, &all, &self.clock, near),
+            attached(&args.nodes)
+        ))
     }
 
     fn memory_index(&self, args: MemoryIndex) -> Result<String, String> {
@@ -550,11 +566,28 @@ impl Tool<'_> {
     }
 }
 
+/// The end of a task reply that lists the nodes it was attached to.
+fn attached(nodes: &[String]) -> String {
+    if nodes.is_empty() {
+        String::new()
+    } else {
+        format!(
+            "
+attached to {}",
+            nodes.join(", ")
+        )
+    }
+}
+
 /// Tool definitions: names, short English descriptions and input schemas.
 fn tool_list() -> Value {
     let status = json!({"type": "string", "enum": ["todo", "doing", "blocked", "done", "cancelled"]});
     let priority = json!({"type": "string", "enum": ["P0", "P1", "P2", "P3"]});
-    let kind = json!({"type": "string", "enum": ["decision", "fact", "convention", "component", "gotcha", "howto", "reference"]});
+    let kind = json!({
+        "type": "string",
+        "enum": ["decision", "fact", "convention", "gotcha", "howto", "reference", "component", "data", "program", "study", "tool"],
+        "description": "Knowledge: decision, fact, convention, gotcha, howto, reference. Architecture (the project's parts): component, data, program, study, tool"
+    });
     let link_type = json!({"type": "string", "enum": ["depends_on", "implies", "equivalent_to", "part_of", "supersedes", "contradicts", "relates_to"]});
     let task_id = json!({"type": "string", "description": "Task id, e.g. T-12"});
     let due = json!({"type": ["string", "null"], "description": "YYYY-MM-DD or YYYY-MM-DDTHH:MM in the user's local time; empty or null clears it"});
@@ -562,6 +595,11 @@ fn tool_list() -> Value {
     let deliverable = json!({"type": "string", "description": deliverable_text});
     let deliverable_or_null =
         json!({"type": ["string", "null"], "description": format!("{deliverable_text}; null clears it")});
+    let nodes = json!({
+        "type": "array",
+        "items": {"type": "string"},
+        "description": "Ids of the memory nodes (architecture parts: data, program, study...) this task works on; each gets a relates_to link to the task"
+    });
     let link_target =
         json!({"type": "string", "description": "A node id, task:T-12, file:path/in/project, or an http(s) URL"});
     let tools = vec![
@@ -604,7 +642,7 @@ fn tool_list() -> Value {
                 "title": {"type": "string"}, "description": {"type": "string"}, "status": status,
                 "priority": priority, "due": due, "tags": {"type": "array", "items": {"type": "string"}},
                 "parent": task_id, "blocked_reason": {"type": "string"}, "note": {"type": "string"},
-                "deliverable": deliverable
+                "deliverable": deliverable, "nodes": nodes
             }),
             &["title"],
         ),
@@ -616,7 +654,7 @@ fn tool_list() -> Value {
                 "status": status, "priority": priority, "due": due,
                 "tags": {"type": "array", "items": {"type": "string"}}, "parent": {"type": ["string", "null"]},
                 "blocked_reason": {"type": "string"}, "note": {"type": ["string", "null"]},
-                "deliverable": deliverable_or_null,
+                "deliverable": deliverable_or_null, "nodes": nodes,
                 "force": {"type": "boolean", "description": "Close even with open subtasks"}
             }),
             &["id"],
