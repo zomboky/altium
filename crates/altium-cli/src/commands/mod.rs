@@ -6,3 +6,4 @@ pub mod list;
 pub mod serve;
 pub mod setup;
 pub mod survey;
+pub mod update;

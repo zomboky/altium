@@ -42,10 +42,7 @@ pub fn instructions(memory_lang: &str) -> String {
 pub fn build(input: &Input, budget: usize) -> String {
     let near = input.project.config.near_hours();
     let header = header(input);
-    let usage = format!(
-        "## Altium usage\n{}\n",
-        instructions(input.memory_lang)
-    );
+    let usage = format!("## Altium usage\n{}\n", instructions(input.memory_lang));
 
     let ordered = order(input.tasks, input.clock);
     let line = |t: &Task| task_line(t, input.tasks, input.clock, near);

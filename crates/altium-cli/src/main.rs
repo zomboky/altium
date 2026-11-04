@@ -11,7 +11,7 @@ use clap::{Parser, Subcommand};
 /// Altium : tableau de bord de projets alimenté par Claude Code.
 #[derive(Parser)]
 // Without `bin_name`, clap names the program after its file: `altium.exe` on Windows.
-#[command(name = "altium", bin_name = "altium", version = altium_core::VERSION, about)]
+#[command(name = "altium", bin_name = "altium", version = env!("ALTIUM_LONG_VERSION"), about)]
 struct Cli {
     #[command(subcommand)]
     command: Command,
@@ -65,6 +65,18 @@ enum Command {
         #[arg(long, value_name = "PORT")]
         port: Option<u16>,
     },
+    /// Met Altium à jour depuis son dépôt git (vérifié aussi chaque jour en arrière-plan)
+    Update {
+        /// Dit seulement si une nouvelle version existe
+        #[arg(long)]
+        check: bool,
+        /// Installe la dernière version même depuis une version de développement
+        #[arg(long)]
+        force: bool,
+        /// Mise à jour quotidienne, sans sortie
+        #[arg(long, hide = true)]
+        auto: bool,
+    },
     /// Démarre le dashboard avec la session utilisateur
     Service {
         #[command(subcommand)]
@@ -90,7 +102,11 @@ enum ServiceAction {
 }
 
 fn main() -> ExitCode {
-    let result = match french::parse::<Cli>().command {
+    let cli = french::parse::<Cli>();
+    if !matches!(cli.command, Command::Update { .. }) {
+        commands::update::daily();
+    }
+    let result = match cli.command {
         Command::Init { name, force } => commands::init::run(name, force),
         Command::List => commands::list::run(),
         Command::Forget { target } => commands::forget::run(target),
@@ -99,6 +115,11 @@ fn main() -> ExitCode {
         Command::Doctor { renumber } => commands::doctor::run(renumber),
         Command::Serve { port, background } => commands::serve::run(port, background),
         Command::Open { port } => commands::serve::open(port),
+        Command::Update { auto: true, .. } => {
+            commands::update::run_auto();
+            Ok(())
+        }
+        Command::Update { check, force, .. } => commands::update::run(check, force, false),
         Command::Service { action } => match action {
             ServiceAction::Install => commands::serve::install(),
             ServiceAction::Uninstall => commands::serve::uninstall(),

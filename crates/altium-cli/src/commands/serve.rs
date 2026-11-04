@@ -84,7 +84,11 @@ fn detach_console() {
 
 /// Starts `altium serve --background` as a detached process.
 pub fn start_background(port: u16) -> Result<()> {
-    let exe = env::current_exe()?;
+    start_background_with(&env::current_exe()?, port)
+}
+
+/// Like [`start_background`], with the binary `exe`.
+pub fn start_background_with(exe: &std::path::Path, port: u16) -> Result<()> {
     let mut command = Command::new(exe);
     command
         .args(["serve", "--background", "--port", &port.to_string()])
@@ -144,6 +148,12 @@ pub fn install() -> Result<()> {
     Ok(())
 }
 
+/// Restarts the dashboard through its systemd unit, when it has one.
+#[cfg(target_os = "linux")]
+pub fn restart_unit() -> Result<bool> {
+    platform::restart()
+}
+
 pub fn uninstall() -> Result<()> {
     let port = port(None)?;
     platform::uninstall()?;
@@ -188,6 +198,20 @@ mod platform {
         systemctl(&["enable", "--now", "altium.service"])?;
         println!("Service systemd utilisateur : {}", display::path(&path));
         Ok(())
+    }
+
+    /// Restarts the systemd unit when it runs the dashboard; `false` when
+    /// the dashboard runs outside of it.
+    pub fn restart() -> Result<bool> {
+        let active = Command::new("systemctl")
+            .args(["--user", "--quiet", "is-active", "altium.service"])
+            .status()
+            .is_ok_and(|s| s.success());
+        if !unit_path()?.exists() || !active {
+            return Ok(false);
+        }
+        systemctl(&["restart", "altium.service"])?;
+        Ok(true)
     }
 
     pub fn uninstall() -> Result<()> {

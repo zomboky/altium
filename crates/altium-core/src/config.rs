@@ -31,8 +31,16 @@ pub struct GlobalConfig {
     /// Language of memory nodes when the project does not set one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub memory_lang: Option<String>,
+    /// Daily update check at the first use of the day.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub auto_update: Option<bool>,
+    /// Git repository `altium update` builds from.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub update_repo: Option<String>,
 }
 
+/// Repository of `altium update` by default.
+pub const UPDATE_REPO: &str = "https://github.com/zomboky/altium.git";
 
 impl GlobalConfig {
     /// Reads `config.toml` in `dir`; a missing file is the default config.
@@ -50,6 +58,14 @@ impl GlobalConfig {
 
     pub fn notifications(&self) -> bool {
         self.notifications.unwrap_or(true)
+    }
+
+    pub fn auto_update(&self) -> bool {
+        self.auto_update.unwrap_or(true)
+    }
+
+    pub fn update_repo(&self) -> &str {
+        self.update_repo.as_deref().unwrap_or(UPDATE_REPO)
     }
 
     /// Memory language of a project: its own setting, else the global one.
@@ -104,5 +120,15 @@ mod tests {
         assert_eq!(config.default_memory_lang(), "fr");
         project.memory.lang = Some("de".into());
         assert_eq!(config.memory_lang(&project), "de");
+    }
+
+    #[test]
+    fn updates_are_on_by_default_from_github() {
+        let config: GlobalConfig = toml::from_str("").unwrap();
+        assert!(config.auto_update());
+        assert_eq!(config.update_repo(), UPDATE_REPO);
+        let config: GlobalConfig = toml::from_str("auto_update = false\nupdate_repo = '/src/altium'").unwrap();
+        assert!(!config.auto_update());
+        assert_eq!(config.update_repo(), "/src/altium");
     }
 }

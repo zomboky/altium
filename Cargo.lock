@@ -40,6 +40,7 @@ dependencies = [
  "altium-server",
  "anyhow",
  "assert_cmd",
+ "chrono",
  "clap",
  "dirs",
  "dunce",

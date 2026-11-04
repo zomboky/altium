@@ -333,7 +333,10 @@ fn help_is_in_french() {
     env.altium(&dir, &["-V"])
         .assert()
         .success()
-        .stdout(format!("altium {}\n", altium_core::VERSION));
+        .stdout(predicates::str::starts_with(format!(
+            "altium {} (",
+            altium_core::VERSION
+        )));
 }
 
 #[test]
@@ -361,4 +364,48 @@ fn command_line_errors_are_in_french() {
         .code(2)
         .stderr(contains("erreur : il manque une valeur pour « --name <NOM> »"));
     assert!(!dir.join(".altium").exists());
+}
+
+fn git(dir: &Path, args: &[&str]) {
+    let output = Command::new("git")
+        .args(["-c", "user.name=Test", "-c", "user.email=test@example.com"])
+        .args(args)
+        .current_dir(dir)
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "git {args:?}: {output:?}");
+}
+
+#[test]
+fn update_check_clones_the_repository_and_compares_commits() {
+    let env = Env::new();
+    let repo = env.dir("depot");
+    git(&repo, &["init", "--quiet", "--initial-branch", "main"]);
+    fs::write(repo.join("README.md"), "# Altium\n").unwrap();
+    git(&repo, &["add", "."]);
+    git(&repo, &["commit", "--quiet", "-m", "Premier commit"]);
+    fs::create_dir_all(env.config_dir()).unwrap();
+    fs::write(
+        env.config_dir().join("config.toml"),
+        format!("update_repo = '{}'\n", repo.display()),
+    )
+    .unwrap();
+
+    // The test binary comes from this repository's commit, which the
+    // throwaway one does not have: a development build, left alone.
+    for _ in 0..2 {
+        env.altium(&repo, &["update", "--check"])
+            .assert()
+            .success()
+            .stdout(contains("version de développement"));
+    }
+    assert!(env.config_dir().join("source/README.md").exists());
+}
+
+#[test]
+fn dev_builds_skip_the_daily_update() {
+    let env = Env::new();
+    let dir = env.dir("foo");
+    env.altium(&dir, &["list"]).assert().success();
+    assert!(!env.config_dir().join("update-check").exists());
 }
