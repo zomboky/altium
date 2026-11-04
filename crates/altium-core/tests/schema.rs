@@ -48,6 +48,7 @@ fn rendered_tasks_match_the_schema() {
         description: Some("desc".into()),
         blocked_reason: Some("why".into()),
         note: Some("note".into()),
+        deliverable: Some("rapport/fiche.pdf".into()),
         done_at: Some(now),
         ..Task::new(TaskId(2), "Full", now)
     };

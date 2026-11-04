@@ -38,6 +38,18 @@ async fn start() -> Server {
 
 /// Sends one request with the given extra headers; returns status and body.
 async fn request(port: u16, method: &str, path: &str, headers: &[(&str, &str)], body: Option<Value>) -> (u16, String) {
+    let (status, _, body) = exchange(port, method, path, headers, body).await;
+    (status, body)
+}
+
+/// Like [`request`], with the response headers too (lowercase names).
+async fn exchange(
+    port: u16,
+    method: &str,
+    path: &str,
+    headers: &[(&str, &str)],
+    body: Option<Value>,
+) -> (u16, String, String) {
     let mut stream = TcpStream::connect(("127.0.0.1", port)).await.unwrap();
     let body = body.map(|b| b.to_string()).unwrap_or_default();
     let mut text = format!(
@@ -60,11 +72,8 @@ async fn request(port: u16, method: &str, path: &str, headers: &[(&str, &str)], 
     stream.read_to_end(&mut response).await.unwrap();
     let response = String::from_utf8_lossy(&response).into_owned();
     let status = response.split_whitespace().nth(1).unwrap().parse().unwrap();
-    let body = response
-        .split_once("\r\n\r\n")
-        .map(|(_, b)| b.to_owned())
-        .unwrap_or_default();
-    (status, body)
+    let (head, body) = response.split_once("\r\n\r\n").unwrap_or((&response, ""));
+    (status, head.to_lowercase(), body.to_owned())
 }
 
 #[tokio::test]
@@ -88,6 +97,61 @@ async fn foreign_host_and_origin_are_refused() {
     let origin = format!("http://127.0.0.1:{port}");
     let (status, _) = request(port, "POST", &path, &[("Origin", &origin)], Some(new)).await;
     assert_eq!(status, 201);
+}
+
+#[tokio::test]
+async fn deliverables_and_project_files() {
+    let server = start().await;
+    let port = server.port;
+    let base = format!("/api/projects/{}", server.project);
+
+    let new = json!({"title": "Rapport", "deliverable": r"rapport\fiche.pdf"});
+    let (status, body) = request(port, "POST", &format!("{base}/tasks"), &[], Some(new)).await;
+    assert_eq!(status, 201, "{body}");
+    let task: Value = serde_json::from_str(&body).unwrap();
+    assert_eq!(task["deliverable"], "rapport/fiche.pdf");
+    assert_eq!(task["deliverable_available"], false);
+
+    let outside = json!({"title": "x", "deliverable": "../secret.txt"});
+    let (status, _) = request(port, "POST", &format!("{base}/tasks"), &[], Some(outside)).await;
+    assert_eq!(status, 422);
+
+    std::fs::create_dir_all(server.root.join("rapport")).unwrap();
+    std::fs::write(server.root.join("rapport/fiche.pdf"), "%PDF-1.7 fiche").unwrap();
+    std::fs::write(server.root.join("rapport/carte.html"), "<script>1</script>").unwrap();
+    let (_, body) = request(port, "GET", &format!("{base}/tasks"), &[], None).await;
+    assert!(body.contains("\"deliverable_available\":true"), "{body}");
+
+    let pdf = format!("{base}/files/rapport/fiche.pdf");
+    let (status, head, body) = exchange(port, "GET", &pdf, &[], None).await;
+    assert_eq!(status, 200);
+    assert!(head.contains("content-type: application/pdf"), "{head}");
+    assert!(body.contains("%PDF-1.7 fiche"));
+    // Ranges, for seeking in videos.
+    let (status, _, body) = exchange(port, "GET", &pdf, &[("Range", "bytes=0-3")], None).await;
+    assert_eq!(status, 206);
+    assert_eq!(body, "%PDF");
+
+    let page = format!("{base}/files/rapport/carte.html");
+    let (status, head, _) = exchange(port, "GET", &page, &[], None).await;
+    assert_eq!(status, 200);
+    assert!(
+        head.contains("content-security-policy: sandbox allow-scripts"),
+        "{head}"
+    );
+    assert!(!head.contains("allow-same-origin"), "{head}");
+
+    for refused in [
+        "files/.altium/project.toml",
+        "files/../x",
+        "files/rapport",
+        "files/absent.pdf",
+    ] {
+        let (status, _) = request(port, "GET", &format!("{base}/{refused}"), &[], None).await;
+        assert_eq!(status, 404, "{refused}");
+    }
+    let (status, _) = request(port, "GET", &pdf, &[("Sec-Fetch-Site", "cross-site")], None).await;
+    assert_eq!(status, 403);
 }
 
 #[tokio::test]

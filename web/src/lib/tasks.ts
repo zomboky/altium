@@ -131,6 +131,7 @@ export function fields(task: Task): TaskFields {
     parent: task.parent,
     blocked_reason: task.blocked_reason,
     note: task.note,
+    deliverable: task.deliverable,
   }
 }
 
@@ -145,6 +146,23 @@ export function patch(base: TaskFields, edited: TaskFields): TaskPatch {
     if (!same(base[key], edited[key])) result[key] = { base: base[key], value: edited[key] }
   }
   return result as TaskPatch
+}
+
+/** Tasks shown in the history, at most. */
+export const HISTORY_SIZE = 100
+
+/** When a task last moved: closed tasks by their closing, the others by their last change. */
+export function lastActivity(task: Task): string {
+  return task.done_at ?? task.updated_at
+}
+
+const number = (task: Task) => Number(task.id.slice(2))
+
+/** The latest tasks first, at most `limit`; timestamps are to the second, the newest task wins a tie. */
+export function history(tasks: Task[], limit = HISTORY_SIZE): Task[] {
+  return [...tasks]
+    .sort((a, b) => lastActivity(b).localeCompare(lastActivity(a)) || number(b) - number(a))
+    .slice(0, limit)
 }
 
 /** Free tags are lowercase labels: `API, front end` gives `api`, `front-end`. */

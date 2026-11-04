@@ -14,7 +14,7 @@ Les textes destinés à Claude (descriptions, réponses, erreurs) sont en anglai
 | `status_set` | `summary` (≤ 600 caractères), `phase` | met à jour le résumé et la phase |
 | `task_list` | `status[]`, `priority[]`, `tag`, `deadline[]` (`overdue`, `near`, `later`, `none`), `text`, `closed`, `limit` | tasks dans l'ordre de priorité commun, une ligne chacune |
 | `task_get` | `id` | une task complète, ses sous-tâches et son historique |
-| `task_create` | `title`, puis au choix `description`, `status`, `priority`, `due`, `tags[]`, `parent`, `blocked_reason`, `note` | crée une task (`todo`, `P2` par défaut) |
+| `task_create` | `title`, puis au choix `description`, `status`, `priority`, `due`, `tags[]`, `parent`, `blocked_reason`, `note`, `deliverable` | crée une task (`todo`, `P2` par défaut) |
 | `task_update` | `id`, les champs à changer, `force` | modifie une task ; `null` ou `""` efface un champ facultatif |
 | `memory_index` | `limit` | une ligne par nœud actif, du plus au moins pertinent |
 | `memory_get` | `ids[]`, `follow[]` (types de liens), `depth` | corps et liens des nœuds, voisins en lignes d'index |
@@ -22,6 +22,8 @@ Les textes destinés à Claude (descriptions, réponses, erreurs) sont en anglai
 | `memory_put` | `id`, `kind`, `title`, `desc` (≤ 120 caractères), `body`, `tags[]`, `pinned`, `links[]` | crée ou met à jour un nœud ; un champ absent garde sa valeur |
 | `memory_link` | `from`, `to`, `type`, `note` | ajoute un lien typé vers un nœud, une task (`task:T-3`), un fichier (`file:src/`) ou une URL |
 | `memory_unlink` | `from`, `to`, `type` | retire des liens |
+
+`deliverable` est le chemin, dans le projet, du fichier que la task a produit (rapport, figure, export, vidéo, page HTML) ou une URL ; le dashboard l'affiche dès que le fichier existe.
 
 Aucun outil ne supprime de task : Claude passe une task obsolète à `cancelled` avec une note. Passer une task à `blocked` demande `blocked_reason`. Passer à `done` une task qui a des sous-tâches ouvertes échoue sans `force: true`, et l'erreur liste ces sous-tâches.
 

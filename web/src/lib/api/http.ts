@@ -5,6 +5,7 @@ import type {
   Activity,
   ActivityFilter,
   GitInfo,
+  GraphNode,
   MemoryFilter,
   MemoryNode,
   NewTask,
@@ -34,6 +35,7 @@ export interface Api {
   stats(id: string, days: number): Promise<Stats>
   memory(id: string, filter?: MemoryFilter): Promise<NodeLine[]>
   node(id: string, node: string): Promise<MemoryNode>
+  memoryGraph(id: string): Promise<GraphNode[]>
   pin(id: string, node: string, pinned: boolean): Promise<void>
   git(id: string): Promise<GitInfo | null>
 }
@@ -135,6 +137,9 @@ export class HttpApi implements Api {
   }
   node(id: string, node: string) {
     return this.call<MemoryNode>('GET', this.project_path(id, `/memory/${encodeURIComponent(node)}`))
+  }
+  async memoryGraph(id: string) {
+    return (await this.call<{ nodes: GraphNode[] }>('GET', this.project_path(id, '/memory-graph'))).nodes
   }
   pin(id: string, node: string, pinned: boolean) {
     return this.call<void>('PUT', this.project_path(id, `/memory/${encodeURIComponent(node)}/pin`), { pinned })

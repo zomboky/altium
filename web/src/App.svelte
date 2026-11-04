@@ -6,6 +6,7 @@
   import { TABS, href, link, router } from './lib/router.svelte'
   import { SHORTCUTS, typing, ui } from './lib/ui.svelte'
   import Activity from './views/Activity.svelte'
+  import History from './views/History.svelte'
   import Kanban from './views/Kanban.svelte'
   import Memory from './views/Memory.svelte'
   import Overview from './views/Overview.svelte'
@@ -50,6 +51,9 @@
         break
       case 's':
         go('summary')
+        break
+      case 'h':
+        go('history')
         break
       case 'a':
         go('activity')
@@ -124,6 +128,8 @@
         <TaskList project={route.project} />
       {:else if route.page === 'kanban'}
         <Kanban project={route.project} />
+      {:else if route.page === 'history'}
+        <History project={route.project} />
       {:else if route.page === 'activity'}
         <Activity project={route.project} />
       {:else if route.page === 'memory'}

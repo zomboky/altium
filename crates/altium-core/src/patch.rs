@@ -46,6 +46,7 @@ pub struct TaskPatch {
     pub position: Option<Edit<Option<u32>>>,
     pub blocked_reason: Option<Edit<Option<String>>>,
     pub note: Option<Edit<Option<String>>>,
+    pub deliverable: Option<Edit<Option<String>>>,
 }
 
 /// The patch was based on values that changed since. `task` is the current
@@ -70,6 +71,7 @@ macro_rules! for_each_field {
         $m!(position, "position");
         $m!(blocked_reason, "blocked_reason");
         $m!(note, "note");
+        $m!(deliverable, "deliverable");
     };
 }
 

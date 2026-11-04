@@ -215,6 +215,7 @@ struct TaskCreate {
     parent: Option<TaskId>,
     blocked_reason: Option<String>,
     note: Option<String>,
+    deliverable: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -229,6 +230,7 @@ struct TaskUpdate {
     parent: Option<Value>,
     blocked_reason: Option<String>,
     note: Option<Value>,
+    deliverable: Option<Value>,
     #[serde(default)]
     force: bool,
 }
@@ -404,6 +406,7 @@ impl Tool<'_> {
             parent: args.parent,
             blocked_reason: args.blocked_reason,
             note: args.note,
+            deliverable: args.deliverable,
         };
         let task = ops::create_task(self.store, new, &self.actor, &self.clock).map_err(task_error)?;
         let all = self.store.tasks().map_err(store_error)?;
@@ -437,6 +440,7 @@ impl Tool<'_> {
             position: None,
             blocked_reason: args.blocked_reason.map(|r| Edit::set(Some(r))),
             note: text_field(&args.note, "note")?,
+            deliverable: text_field(&args.deliverable, "deliverable")?,
         };
         let task =
             ops::update_task(self.store, args.id, &patch, args.force, &self.actor, &self.clock).map_err(task_error)?;
@@ -554,6 +558,10 @@ fn tool_list() -> Value {
     let link_type = json!({"type": "string", "enum": ["depends_on", "implies", "equivalent_to", "part_of", "supersedes", "contradicts", "relates_to"]});
     let task_id = json!({"type": "string", "description": "Task id, e.g. T-12"});
     let due = json!({"type": ["string", "null"], "description": "YYYY-MM-DD or YYYY-MM-DDTHH:MM in the user's local time; empty or null clears it"});
+    let deliverable_text = "What the task produced, shown in the dashboard: a path relative to the project root (rapport/fiche.pdf, out/carte.html, figures/roc.svg) or an http(s) URL";
+    let deliverable = json!({"type": "string", "description": deliverable_text});
+    let deliverable_or_null =
+        json!({"type": ["string", "null"], "description": format!("{deliverable_text}; null clears it")});
     let link_target =
         json!({"type": "string", "description": "A node id, task:T-12, file:path/in/project, or an http(s) URL"});
     let tools = vec![
@@ -595,7 +603,8 @@ fn tool_list() -> Value {
             json!({
                 "title": {"type": "string"}, "description": {"type": "string"}, "status": status,
                 "priority": priority, "due": due, "tags": {"type": "array", "items": {"type": "string"}},
-                "parent": task_id, "blocked_reason": {"type": "string"}, "note": {"type": "string"}
+                "parent": task_id, "blocked_reason": {"type": "string"}, "note": {"type": "string"},
+                "deliverable": deliverable
             }),
             &["title"],
         ),
@@ -607,6 +616,7 @@ fn tool_list() -> Value {
                 "status": status, "priority": priority, "due": due,
                 "tags": {"type": "array", "items": {"type": "string"}}, "parent": {"type": ["string", "null"]},
                 "blocked_reason": {"type": "string"}, "note": {"type": ["string", "null"]},
+                "deliverable": deliverable_or_null,
                 "force": {"type": "boolean", "description": "Close even with open subtasks"}
             }),
             &["id"],

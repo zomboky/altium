@@ -80,6 +80,7 @@ Le fichier contient une task par ligne, au format JSON, triées par numéro d'id
 | `desc` | description | aucune |
 | `why` | raison du blocage, présente seulement quand `st` vaut `blocked` | aucune |
 | `note` | note libre, par exemple la raison d'une annulation | aucune |
+| `dlv` | livrable : chemin relatif à la racine du projet avec des `/` (`rapport/synthese.pdf`) ou URL `http(s)://` ; ni chemin absolu, ni `..`, ni dossier caché | aucun |
 | `rev` | révision, incrémentée à chaque modification | obligatoire |
 | `ca`, `ua`, `da` | dates de création, de modification et de fin, en UTC | `da` absente si la task n'est pas finie |
 

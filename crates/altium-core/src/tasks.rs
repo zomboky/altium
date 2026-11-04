@@ -54,6 +54,7 @@ pub struct NewTask {
     pub parent: Option<TaskId>,
     pub blocked_reason: Option<String>,
     pub note: Option<String>,
+    pub deliverable: Option<String>,
 }
 
 /// Creates a task with the next free id and returns it.
@@ -73,6 +74,7 @@ pub fn create(tasks: &mut Vec<Task>, new: NewTask, clock: &Clock) -> Result<Task
         parent: new.parent.map(|p| Edit::set(Some(p))),
         blocked_reason: new.blocked_reason.map(|r| Edit::set(Some(r))),
         note: new.note.map(|n| Edit::set(Some(n))),
+        deliverable: new.deliverable.map(|d| Edit::set(Some(d))),
         position: None,
     };
     patch.apply(&mut task, clock.timestamp())?;
@@ -134,10 +136,18 @@ fn normalize(task: &mut Task, before: Option<&Task>, clock: &Clock) -> Result<()
         }
     }
     task.tags = tags;
-    for field in [&mut task.description, &mut task.note, &mut task.blocked_reason] {
+    for field in [
+        &mut task.description,
+        &mut task.note,
+        &mut task.blocked_reason,
+        &mut task.deliverable,
+    ] {
         if field.as_deref().is_some_and(|text| text.trim().is_empty()) {
             *field = None;
         }
+    }
+    if let Some(deliverable) = &task.deliverable {
+        task.deliverable = Some(crate::files::normalize(deliverable).map_err(TaskError::Invalid)?);
     }
 
     if task.status == TaskStatus::Blocked {

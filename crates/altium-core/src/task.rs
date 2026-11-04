@@ -88,6 +88,10 @@ pub struct Task {
     pub blocked_reason: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
+    /// What the task produced: a path relative to the project root or an
+    /// http(s) URL. See [`crate::files`].
+    #[serde(rename = "dlv", default, skip_serializing_if = "Option::is_none")]
+    pub deliverable: Option<String>,
     /// Incremented on every change.
     pub rev: u32,
     #[serde(rename = "ca")]
@@ -113,6 +117,7 @@ impl Task {
             description: None,
             blocked_reason: None,
             note: None,
+            deliverable: None,
             rev: 1,
             created_at: now,
             updated_at: now,

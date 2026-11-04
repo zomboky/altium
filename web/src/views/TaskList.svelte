@@ -2,6 +2,7 @@
   import { onDestroy } from 'svelte'
 
   import Due from '../components/Due.svelte'
+  import FileLink from '../components/FileLink.svelte'
   import TaskForm from '../components/TaskForm.svelte'
   import { PRIORITIES, STATUSES, type Task, type TaskList, services } from '../lib/api'
   import { attempt, setPriority, setStatus } from '../lib/actions'
@@ -140,6 +141,15 @@
             <button class="chip tag" onclick={() => router.setQuery({ tag })}>#{tag}</button>
           {/each}
           <Due due={task.due} state={task.deadline} />
+          {#if task.deliverable}
+            <FileLink
+              {project}
+              target={task.deliverable}
+              available={task.deliverable_available}
+              title={`Livrable de ${task.id}`}
+              compact
+            />
+          {/if}
           {#if task.blocked_reason && task.status === 'blocked'}
             <span class="reason">⛔ {task.blocked_reason}</span>
           {/if}

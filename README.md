@@ -151,8 +151,11 @@ Les pages ont toutes une URL stable, à mettre en favori :
 | Synthèse | résumé et phase modifiables, progression, santé, état git et derniers commits |
 | Liste | tasks dans l'ordre de priorité, avec leurs sous-tâches ; filtres par statut, priorité, tag, deadline et texte ; priorité et statut modifiables sur la ligne ; flèches pour réordonner les tasks de même priorité |
 | Kanban | une colonne par statut ; glisser une carte change son statut ou son ordre ; « Bloqué » demande la raison |
+| Historique | les 100 dernières tasks, de la plus récente à la plus ancienne, avec leur livrable ; filtres par statut et « avec livrable » |
 | Activité | sessions Claude, outil en cours avec son chrono, flux des appels d'outils filtrable, statistiques par période |
-| Mémoire | nœuds filtrables par type, tag et texte ; liens cliquables, liens cassés, contradictions, épinglage |
+| Mémoire | en liste : nœuds filtrables par type, tag et texte ; liens cliquables, liens cassés, contradictions, épinglage. En graphe : une carte par nœud placée automatiquement (hiérarchie verticale ou horizontale, organique), voisins mis en évidence au survol, miniature des images liées et pièces jointes (PDF, vidéo, page HTML interactive, task) qui s'ouvrent dans une visionneuse |
+
+Une task peut avoir un livrable : un fichier du projet ou une URL. Quand le fichier existe, « Afficher le livrable » apparaît dans le formulaire de la task, et une icône sur sa ligne. PDF, images, vidéos, sons et textes s'ouvrent dans la visionneuse ; une page HTML y tourne isolée, sans accès au dashboard. Le serveur ne sert que les fichiers du projet hors dossiers cachés (donc jamais `.altium/` ni `.git/`).
 
 Tout se met à jour en direct, que la modification vienne de Claude, d'un autre onglet ou d'une édition des fichiers à la main. Si Claude modifie une task pendant que tu l'édites, le formulaire te le signale au lieu d'écraser : tu choisis de garder tes valeurs ou de prendre la version actuelle. Le thème suit le mode clair ou sombre du système.
 
@@ -160,7 +163,7 @@ Tout se met à jour en direct, que la modification vienne de Claude, d'un autre 
 |---|---|
 | `n` | nouvelle task |
 | `p` | changer de projet |
-| `l` / `k` | tasks en liste / en kanban |
+| `l` / `k` / `h` | tasks en liste / en kanban / historique |
 | `/` | rechercher |
 | `s` / `a` / `m` | synthèse / activité / mémoire |
 | `g` | vue d'ensemble |

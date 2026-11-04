@@ -55,6 +55,7 @@ export const SHORTCUTS: [string, string][] = [
   ['p', 'Changer de projet'],
   ['l', 'Tasks en liste'],
   ['k', 'Tasks en kanban'],
+  ['h', 'Historique des tasks'],
   ['/', 'Rechercher'],
   ['s', 'Synthèse du projet'],
   ['a', 'Activité'],

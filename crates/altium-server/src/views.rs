@@ -6,6 +6,7 @@ use std::path::Path;
 
 use altium_core::activity::{self, Archive, SessionView, Sessions};
 use altium_core::config::GlobalConfig;
+use altium_core::files;
 use altium_core::graph::{Graph, World, kind_name, link_name};
 use altium_core::health::{self, Health, Progress};
 use altium_core::memory::{LinkTarget, LinkType, MemoryNode};
@@ -32,6 +33,10 @@ pub struct TaskView {
     pub description: Option<String>,
     pub blocked_reason: Option<String>,
     pub note: Option<String>,
+    /// Project path or URL of what the task produced.
+    pub deliverable: Option<String>,
+    /// The deliverable can be opened: a URL, or a file that exists.
+    pub deliverable_available: bool,
     pub rev: u32,
     pub created_at: Timestamp,
     pub updated_at: Timestamp,
@@ -40,7 +45,9 @@ pub struct TaskView {
     pub progress: Option<(usize, usize)>,
 }
 
-pub fn task(task: &Task, all: &[Task], clock: &Clock, near: u32) -> TaskView {
+/// `root` is the project folder, to check that the deliverable exists; without
+/// it, a file deliverable counts as unavailable.
+pub fn task(task: &Task, all: &[Task], clock: &Clock, near: u32, root: Option<&Path>) -> TaskView {
     TaskView {
         id: task.id.to_string(),
         title: task.title.clone(),
@@ -54,6 +61,12 @@ pub fn task(task: &Task, all: &[Task], clock: &Clock, near: u32) -> TaskView {
         description: task.description.clone(),
         blocked_reason: task.blocked_reason.clone(),
         note: task.note.clone(),
+        deliverable: task.deliverable.clone(),
+        deliverable_available: match (&task.deliverable, root) {
+            (Some(deliverable), Some(root)) => files::available(root, deliverable),
+            (Some(deliverable), None) => files::is_url(deliverable),
+            (None, _) => false,
+        },
         rev: task.rev,
         created_at: task.created_at,
         updated_at: task.updated_at,
@@ -69,14 +82,14 @@ pub struct TaskList {
     pub near_hours: u32,
 }
 
-pub fn task_list(all: &[Task], clock: &Clock, near: u32) -> TaskList {
+pub fn task_list(all: &[Task], clock: &Clock, near: u32, root: &Path) -> TaskList {
     let ordered = tasks::order(all, clock);
     let tasks = ordered
         .active
         .iter()
         .chain(&ordered.blocked)
         .chain(&ordered.closed)
-        .map(|t| task(t, all, clock, near))
+        .map(|t| task(t, all, clock, near, Some(root)))
         .collect();
     TaskList {
         tasks,
@@ -321,25 +334,15 @@ pub struct NodeView {
     pub incoming: Vec<LinkView>,
 }
 
-pub fn node(store: &Store, graph: &Graph, node: &MemoryNode) -> NodeView {
-    let task_ids = world_tasks(store);
-    let world = World {
-        tasks: &task_ids,
-        root: store.root(),
-    };
-    let broken: Vec<String> = graph
-        .broken_links(node, &world)
-        .iter()
-        .map(|l| l.to.to_string())
-        .collect();
+/// Links of `node`, as shown; `broken` lists the targets that do not exist.
+fn outgoing(graph: &Graph, node: &MemoryNode, broken: &[String]) -> Vec<LinkView> {
     let target_type = |t: &LinkTarget| match t {
         LinkTarget::Node(_) => "node",
         LinkTarget::Task(_) => "task",
         LinkTarget::File(_) => "file",
         LinkTarget::Url(_) => "url",
     };
-    let links = node
-        .meta
+    node.meta
         .links
         .iter()
         .map(|l| LinkView {
@@ -357,7 +360,51 @@ pub fn node(store: &Store, graph: &Graph, node: &MemoryNode) -> NodeView {
             note: l.note.clone(),
             broken: broken.contains(&l.to.to_string()),
         })
+        .collect()
+}
+
+/// A node and its outgoing links, for the graph view.
+#[derive(Debug, Serialize)]
+pub struct GraphNodeView {
+    #[serde(flatten)]
+    pub line: NodeLine,
+    pub links: Vec<LinkView>,
+}
+
+/// The whole memory graph in one answer: every node with its links.
+pub fn memory_graph(store: &Store, graph: &Graph) -> Vec<GraphNodeView> {
+    let task_ids = world_tasks(store);
+    let world = World {
+        tasks: &task_ids,
+        root: store.root(),
+    };
+    memory_index(store, graph)
+        .into_iter()
+        .filter_map(|line| {
+            let node = graph.get(&line.id)?;
+            let broken: Vec<String> = graph
+                .broken_links(node, &world)
+                .iter()
+                .map(|l| l.to.to_string())
+                .collect();
+            let links = outgoing(graph, node, &broken);
+            Some(GraphNodeView { line, links })
+        })
+        .collect()
+}
+
+pub fn node(store: &Store, graph: &Graph, node: &MemoryNode) -> NodeView {
+    let task_ids = world_tasks(store);
+    let world = World {
+        tasks: &task_ids,
+        root: store.root(),
+    };
+    let broken: Vec<String> = graph
+        .broken_links(node, &world)
+        .iter()
+        .map(|l| l.to.to_string())
         .collect();
+    let links = outgoing(graph, node, &broken);
     let incoming = graph
         .incoming(&node.id)
         .iter()

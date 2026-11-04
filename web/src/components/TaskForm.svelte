@@ -13,6 +13,8 @@
   import { send } from '../lib/actions'
   import { PRIORITY_LABELS, STATUS_LABELS, actor, relative } from '../lib/format'
   import { descendants, fields, parseTags, patch } from '../lib/tasks'
+  import { FILE_ICONS, fileKind, isUrl } from '../lib/files'
+  import FileViewer from './FileViewer.svelte'
 
   let {
     project,
@@ -45,6 +47,7 @@
     parent: null,
     blocked_reason: null,
     note: null,
+    deliverable: null,
   })
 
   // The values the form was opened with: the base of the patch.
@@ -59,6 +62,8 @@
   let parent = $state(base.parent ?? '')
   let reason = $state(base.blocked_reason ?? '')
   let note = $state(base.note ?? '')
+  let deliverable = $state(base.deliverable ?? '')
+  let viewing = $state(false)
 
   let saving = $state(false)
   let error = $state<string | null>(null)
@@ -86,6 +91,7 @@
       parent: parent || null,
       blocked_reason: taskStatus === 'blocked' ? reason.trim() || null : base.blocked_reason,
       note: note.trim() || null,
+      deliverable: deliverable.trim() || null,
     }
   }
 
@@ -101,6 +107,7 @@
     parent = values.parent ?? ''
     reason = values.blocked_reason ?? ''
     note = values.note ?? ''
+    deliverable = values.deliverable ?? ''
   }
 
   async function submit(event: SubmitEvent) {
@@ -127,6 +134,7 @@
           tags: values.tags,
           parent: values.parent,
           blocked_reason: values.status === 'blocked' ? values.blocked_reason : null,
+          deliverable: values.deliverable,
         })
       }
       dialog.close()
@@ -220,6 +228,26 @@
         </select>
       </label>
     </div>
+    <div class="row deliverable">
+      <label class="grow">
+        Livrable
+        <input
+          bind:value={deliverable}
+          name="deliverable"
+          placeholder="rapport/synthese.pdf ou https://…"
+          title="Chemin dans le projet ou URL"
+        />
+      </label>
+      {#if task?.deliverable && task.deliverable_available && isUrl(task.deliverable)}
+        <a class="button show" href={task.deliverable} target="_blank" rel="noopener noreferrer" data-testid="show-deliverable"
+          >🔗 Afficher le livrable ↗</a
+        >
+      {:else if task?.deliverable && task.deliverable_available}
+        <button type="button" class="show" onclick={() => (viewing = true)} data-testid="show-deliverable">
+          {FILE_ICONS[fileKind(task.deliverable)]} Afficher le livrable
+        </button>
+      {/if}
+    </div>
     {#if task}
       <label class="wide">
         Note de travail
@@ -264,6 +292,10 @@
     {/if}
   </form>
 </dialog>
+
+{#if viewing && task?.deliverable}
+  <FileViewer {project} target={task.deliverable} title={`Livrable de ${task.id}`} onclose={() => (viewing = false)} />
+{/if}
 
 <style>
   dialog {
@@ -315,6 +347,20 @@
 
   .left {
     margin-right: auto;
+  }
+
+  .deliverable {
+    align-items: flex-end;
+  }
+
+  .show {
+    white-space: nowrap;
+  }
+
+  a.show {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.3rem 0.7rem;
   }
 
   .conflict {

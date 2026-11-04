@@ -61,7 +61,7 @@ pub fn task_line(task: &Task, tasks: &[Task], clock: &Clock, near_hours: u32) ->
     line
 }
 
-/// Full task: its line, then description and note.
+/// Full task: its line, then description, note and deliverable.
 pub fn task_detail(task: &Task, tasks: &[Task], clock: &Clock, near_hours: u32) -> String {
     let mut text = task_line(task, tasks, clock, near_hours);
     if let Some(description) = &task.description {
@@ -69,6 +69,9 @@ pub fn task_detail(task: &Task, tasks: &[Task], clock: &Clock, near_hours: u32) 
     }
     if let Some(note) = &task.note {
         let _ = write!(text, "\nnote: {note}");
+    }
+    if let Some(deliverable) = &task.deliverable {
+        let _ = write!(text, "\ndeliverable: {deliverable}");
     }
     let children: Vec<String> = tasks
         .iter()

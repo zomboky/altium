@@ -4,10 +4,11 @@
 //   /projects/{id}/tasks?status=…      task list
 //   /projects/{id}/kanban              kanban
 //   /projects/{id}/activity?tool=…     activity
+//   /projects/{id}/history?status=…    last tasks and their deliverables
 //   /projects/{id}/memory?kind=…       memory
 //   /projects/{id}/memory/{node}       one memory node
 
-export type Page = 'overview' | 'summary' | 'tasks' | 'kanban' | 'activity' | 'memory' | 'missing'
+export type Page = 'overview' | 'summary' | 'tasks' | 'kanban' | 'history' | 'activity' | 'memory' | 'missing'
 
 export interface Route {
   page: Page
@@ -20,6 +21,7 @@ export const TABS: { page: Page; label: string }[] = [
   { page: 'summary', label: 'Synthèse' },
   { page: 'tasks', label: 'Liste' },
   { page: 'kanban', label: 'Kanban' },
+  { page: 'history', label: 'Historique' },
   { page: 'activity', label: 'Activité' },
   { page: 'memory', label: 'Mémoire' },
 ]
@@ -39,7 +41,7 @@ export function parse(path: string, search = ''): Route {
   if (section === undefined) return route('summary', project)
   if (section === 'memory') return parts.length <= 4 ? route('memory', project, node ?? null) : route('missing')
   if (parts.length > 3) return route('missing')
-  if (section === 'tasks' || section === 'kanban' || section === 'activity') return route(section, project)
+  if (section === 'tasks' || section === 'kanban' || section === 'history' || section === 'activity') return route(section, project)
   return route('missing')
 }
 

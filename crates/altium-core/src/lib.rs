@@ -25,6 +25,7 @@ pub mod actor;
 pub mod config;
 pub mod context;
 pub mod error;
+pub mod files;
 pub mod git;
 pub mod gitignore;
 pub mod graph;

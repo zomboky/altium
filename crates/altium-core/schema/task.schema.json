@@ -32,6 +32,10 @@
     "desc": { "description": "Description.", "type": "string" },
     "why": { "description": "Reason the task is blocked.", "type": "string" },
     "note": { "type": "string" },
+    "dlv": {
+      "description": "Deliverable: a path relative to the project root, with / separators, or an http(s) URL.",
+      "type": "string"
+    },
     "rev": { "description": "Revision, incremented on every change.", "type": "integer", "minimum": 0 },
     "ca": { "description": "Creation time.", "$ref": "#/$defs/timestamp" },
     "ua": { "description": "Last update time.", "$ref": "#/$defs/timestamp" },

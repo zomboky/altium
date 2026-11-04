@@ -27,7 +27,7 @@ pub struct Input<'a> {
 pub fn instructions(memory_lang: &str) -> String {
     format!(
         "Altium keeps this project's tasks, status and memory in .altium/; use the mcp__altium__ tools, not the files.\n\
-         - Tasks: set status doing when you start, done when finished, blocked with a reason; create tasks for new work; never delete, cancel instead.\n\
+         - Tasks: set status doing when you start, done when finished, blocked with a reason; create tasks for new work; never delete, cancel instead; when a task produces a file or page (report, figure, export, video), set its deliverable to that path or URL.\n\
          - Status: after meaningful progress, update the summary (where things stand, next step, blockers) with status_set.\n\
          - Memory: load nodes with memory_get (follow depends_on for prerequisites); save durable knowledge as short nodes linked to others with memory_put and memory_link.\n\
          - {}",

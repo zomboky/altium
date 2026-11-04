@@ -21,6 +21,10 @@ export interface Task {
   description: string | null
   blocked_reason: string | null
   note: string | null
+  /** Project path (`rapport/fiche.pdf`) or URL of what the task produced. */
+  deliverable: string | null
+  /** The deliverable can be opened: a URL, or a file that exists. */
+  deliverable_available: boolean
   rev: number
   created_at: string
   updated_at: string
@@ -192,6 +196,11 @@ export interface Link {
   broken: boolean
 }
 
+/** A node and its outgoing links, for the graph view. */
+export interface GraphNode extends NodeLine {
+  links: Link[]
+}
+
 export interface MemoryNode extends NodeLine {
   created: string
   body: string
@@ -208,6 +217,7 @@ export interface NewTask {
   tags?: string[]
   parent?: string | null
   blocked_reason?: string | null
+  deliverable?: string | null
 }
 
 /** Editable task fields; a patch carries the value seen and the new one. */
@@ -221,6 +231,7 @@ export interface TaskFields {
   parent: string | null
   blocked_reason: string | null
   note: string | null
+  deliverable: string | null
 }
 
 export type TaskPatch = { [K in keyof TaskFields]?: { base: TaskFields[K]; value: TaskFields[K] } } & {

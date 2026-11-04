@@ -6,6 +6,7 @@ use std::sync::Arc;
 use altium_core::StoreError;
 use altium_core::activity;
 use altium_core::actor::Actor;
+use altium_core::files;
 use altium_core::graph::Search;
 use altium_core::memory::NodeKind;
 use altium_core::ops::{self, OpError};
@@ -18,7 +19,7 @@ use altium_core::time::{Clock, Deadline};
 use axum::Router;
 use axum::body::Body;
 use axum::extract::{Path, Query, State};
-use axum::http::{StatusCode, Uri, header};
+use axum::http::{HeaderValue, StatusCode, Uri, header};
 use axum::response::sse::{Event, KeepAlive, Sse};
 use axum::response::{IntoResponse, Json, Response};
 use axum::routing::{get, post, put};
@@ -26,6 +27,7 @@ use futures_util::Stream;
 use serde::Deserialize;
 use serde_json::{Value, json};
 use tokio::sync::broadcast::error::RecvError;
+use tower_http::services::ServeFile;
 
 use crate::{AppState, assets, security, views};
 
@@ -47,6 +49,8 @@ pub fn router(state: Arc<AppState>) -> Router {
         .route("/api/projects/{id}/memory", get(memory_index))
         .route("/api/projects/{id}/memory/{node}", get(memory_node))
         .route("/api/projects/{id}/memory/{node}/pin", put(pin_node))
+        .route("/api/projects/{id}/memory-graph", get(memory_graph))
+        .route("/api/projects/{id}/files/{*path}", get(project_file))
         .route("/api/projects/{id}/git", get(git))
         .route("/api/stream", get(stream))
         .fallback(static_file)
@@ -95,7 +99,7 @@ impl From<TaskError> for ApiError {
             TaskError::NotFound(id) => ApiError::not_found(format!("tâche {id} introuvable")),
             TaskError::Conflict(conflict) => {
                 let clock = Clock::system();
-                let task = views::task(&conflict.task, std::slice::from_ref(&conflict.task), &clock, 48);
+                let task = views::task(&conflict.task, std::slice::from_ref(&conflict.task), &clock, 48, None);
                 ApiError(
                     StatusCode::CONFLICT,
                     json!({"error": "conflict", "fields": conflict.fields, "task": task}),
@@ -221,7 +225,7 @@ async fn set_status(
 async fn task_list(State(state): State<Arc<AppState>>, Path(id): Path<String>) -> ApiResult<Json<Value>> {
     let (store, project) = open(&state, &id)?;
     let all = store.tasks()?;
-    let list = views::task_list(&all, &Clock::system(), near(&state, &project));
+    let list = views::task_list(&all, &Clock::system(), near(&state, &project), store.root());
     Ok(Json(serde_json::to_value(list).expect("tasks serialize")))
 }
 
@@ -238,8 +242,15 @@ async fn task_detail(
     let task_id = task_id(&task)?;
     let all = store.tasks()?;
     let found = tasks::find(&all, task_id)?;
-    let mut value = serde_json::to_value(views::task(found, &all, &Clock::system(), near(&state, &project)))
-        .expect("tasks serialize");
+    let clock = Clock::system();
+    let mut value = serde_json::to_value(views::task(
+        found,
+        &all,
+        &clock,
+        near(&state, &project),
+        Some(store.root()),
+    ))
+    .expect("tasks serialize");
     value["history"] = serde_json::to_value(ops::history(&store, &task)).expect("history serializes");
     Ok(Json(value))
 }
@@ -253,7 +264,7 @@ async fn create_task(
     let clock = Clock::system();
     let task = ops::create_task(&store, new, &Actor::User, &clock)?;
     let all = store.tasks()?;
-    let view = views::task(&task, &all, &clock, near(&state, &project));
+    let view = views::task(&task, &all, &clock, near(&state, &project), Some(store.root()));
     Ok((
         StatusCode::CREATED,
         Json(serde_json::to_value(view).expect("tasks serialize")),
@@ -285,6 +296,7 @@ struct PatchBody {
     parent: Option<FieldEdit<Option<TaskId>>>,
     blocked_reason: Option<FieldEdit<Option<String>>>,
     note: Option<FieldEdit<Option<String>>>,
+    deliverable: Option<FieldEdit<Option<String>>>,
     /// Close even with open subtasks, after the user confirmed.
     force: bool,
 }
@@ -307,6 +319,7 @@ async fn update_task(
         position: None,
         blocked_reason: body.blocked_reason.map(Into::into),
         note: body.note.map(Into::into),
+        deliverable: body.deliverable.map(Into::into),
     };
     let clock = Clock::system();
     let near = near(&state, &project);
@@ -315,14 +328,15 @@ async fn update_task(
         Ok(task) => {
             let all = store.tasks()?;
             Ok(Json(
-                serde_json::to_value(views::task(&task, &all, &clock, near)).expect("tasks serialize"),
+                serde_json::to_value(views::task(&task, &all, &clock, near, Some(store.root())))
+                    .expect("tasks serialize"),
             ))
         }
         Err(TaskError::Conflict(conflict)) => {
             let all = store.tasks()?;
             Err(ApiError(
                 StatusCode::CONFLICT,
-                json!({"error": "conflict", "fields": conflict.fields, "task": views::task(&conflict.task, &all, &clock, near)}),
+                json!({"error": "conflict", "fields": conflict.fields, "task": views::task(&conflict.task, &all, &clock, near, Some(store.root()))}),
             ))
         }
         Err(e) => Err(e.into()),
@@ -444,6 +458,71 @@ async fn memory_node(
     Ok(Json(
         serde_json::to_value(views::node(&store, &graph, found)).expect("nodes serialize"),
     ))
+}
+
+async fn memory_graph(State(state): State<Arc<AppState>>, Path(id): Path<String>) -> ApiResult<Json<Value>> {
+    let (store, _) = open(&state, &id)?;
+    let (graph, _) = ops::load_graph(&store)?;
+    Ok(Json(json!({"nodes": views::memory_graph(&store, &graph)})))
+}
+
+/// Extensions shown as plain text in the browser instead of downloaded.
+const TEXT_FILES: &[&str] = &[
+    "md", "markdown", "txt", "csv", "tsv", "log", "py", "r", "json", "yaml", "yml", "toml",
+];
+
+/// Extensions of documents that can run scripts.
+const ACTIVE_FILES: &[&str] = &["html", "htm", "xhtml", "svg", "xml"];
+
+/// A file of the project: a task deliverable or the target of a memory link.
+/// Only regular files inside the project and outside hidden folders are
+/// served, never to another site. Pages that can run scripts get a sandbox:
+/// their scripts run, but from an opaque origin, so they cannot use this API.
+async fn project_file(
+    State(state): State<Arc<AppState>>,
+    Path((id, path)): Path<(String, String)>,
+    request: axum::extract::Request,
+) -> ApiResult<Response> {
+    let site = request.headers().get("sec-fetch-site").and_then(|v| v.to_str().ok());
+    if site == Some("cross-site") {
+        return Err(ApiError::new(
+            StatusCode::FORBIDDEN,
+            "fichier demandÃ© par un autre site",
+        ));
+    }
+    let (store, _) = open(&state, &id)?;
+    let file = files::resolve(store.root(), &path)
+        .ok_or_else(|| ApiError::not_found(format!("fichier {path} introuvable")))?;
+    let extension = file
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or_default()
+        .to_ascii_lowercase();
+    // ServeFile handles ranges, so videos can be sought.
+    let response = ServeFile::new(&file)
+        .try_call(request)
+        .await
+        .map_err(|e| ApiError::new(StatusCode::INTERNAL_SERVER_ERROR, e))?;
+    let mut response = response.map(Body::new);
+    let headers = response.headers_mut();
+    if TEXT_FILES.contains(&extension.as_str()) {
+        headers.insert(
+            header::CONTENT_TYPE,
+            HeaderValue::from_static("text/plain; charset=utf-8"),
+        );
+    }
+    if ACTIVE_FILES.contains(&extension.as_str()) {
+        headers.insert(
+            header::CONTENT_SECURITY_POLICY,
+            HeaderValue::from_static(
+                "sandbox allow-scripts allow-popups allow-popups-to-escape-sandbox allow-forms allow-modals allow-downloads",
+            ),
+        );
+    }
+    headers.insert(header::X_CONTENT_TYPE_OPTIONS, HeaderValue::from_static("nosniff"));
+    headers.insert("cross-origin-resource-policy", HeaderValue::from_static("same-origin"));
+    headers.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-cache"));
+    Ok(response)
 }
 
 #[derive(Deserialize)]

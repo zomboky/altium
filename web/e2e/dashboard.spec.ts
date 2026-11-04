@@ -1,6 +1,9 @@
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
+
 import { type APIRequestContext, expect, test } from '@playwright/test'
 
-import { mcp, replay } from './altium.ts'
+import { PROJECT, mcp, replay } from './altium.ts'
 
 async function projectId(request: APIRequestContext): Promise<string> {
   const { projects } = await (await request.get('/api/projects')).json()
@@ -105,4 +108,63 @@ test('memory: following a depends_on link opens the target node', async ({ page,
   await expect(page.getByRole('heading', { name: 'Authentification par JWT' })).toBeVisible()
   // The incoming link leads back.
   await expect(page.getByRole('link', { name: 'Refresh token', exact: true })).toBeVisible()
+})
+
+test('deliverables: shown from the task form, the history and the memory graph', async ({ page, request }) => {
+  const id = await projectId(request)
+  mkdirSync(join(PROJECT, 'figures'), { recursive: true })
+  writeFileSync(
+    join(PROJECT, 'figures', 'courbe.svg'),
+    '<svg xmlns="http://www.w3.org/2000/svg" width="120" height="60"><path d="M0 60 Q60 0 120 30" stroke="blue" fill="none"/></svg>',
+  )
+  writeFileSync(join(PROJECT, 'figures', 'carte.html'), '<!doctype html><title>Carte</title><h1>Carte interactive</h1>')
+  mcp([
+    { name: 'task_create', arguments: { title: 'Tracer la courbe', deliverable: 'figures/courbe.svg' } },
+    { name: 'task_create', arguments: { title: 'Livrable à venir', deliverable: 'figures/absent.pdf' } },
+    {
+      name: 'memory_put',
+      arguments: {
+        id: 'resultat-courbe',
+        kind: 'fact',
+        title: 'Résultat de la courbe',
+        desc: 'La courbe converge',
+        body: 'Voir la figure.',
+        links: [
+          { to: 'file:figures/courbe.svg', type: 'relates_to' },
+          { to: 'file:figures/carte.html', type: 'relates_to' },
+        ],
+      },
+    },
+  ])
+
+  await page.goto(`/projects/${id}/tasks`)
+  await page.getByRole('button', { name: 'Livrable à venir' }).click()
+  await expect(page.getByRole('dialog')).toBeVisible()
+  // The file does not exist yet: no button.
+  await expect(page.getByTestId('show-deliverable')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Annuler' }).click()
+
+  await page.getByRole('button', { name: 'Tracer la courbe' }).click()
+  await page.getByTestId('show-deliverable').click()
+  const viewer = page.getByTestId('file-viewer')
+  await expect(viewer.locator('img')).toBeVisible()
+  await viewer.getByRole('button', { name: 'Fermer' }).click()
+  await expect(viewer).toHaveCount(0)
+  await page.getByRole('button', { name: 'Annuler' }).click()
+
+  await page.getByRole('link', { name: 'Historique' }).click()
+  await expect(page).toHaveURL(/\/history$/)
+  const row = page.getByTestId('history-row').filter({ hasText: 'Tracer la courbe' })
+  await row.getByTestId('file-link').click()
+  await expect(page.getByTestId('file-viewer').locator('img')).toBeVisible()
+  await page.getByTestId('file-viewer').getByRole('button', { name: 'Fermer' }).click()
+  await expect(page.getByTestId('history-row').filter({ hasText: 'Livrable à venir' }).getByTestId('file-link')).toHaveCount(0)
+
+  await page.goto(`/projects/${id}/memory?view=graph`)
+  const card = page.getByTestId('graph-card').filter({ hasText: 'Résultat de la courbe' })
+  await expect(card.locator('img')).toBeVisible()
+  await card.getByRole('button', { name: /carte\.html/ }).click()
+  const frame = page.getByTestId('file-viewer').locator('iframe')
+  await expect(frame).toHaveAttribute('sandbox', /allow-scripts/)
+  await expect(page.frameLocator('[data-testid=file-viewer] iframe').getByRole('heading', { name: 'Carte interactive' })).toBeVisible()
 })

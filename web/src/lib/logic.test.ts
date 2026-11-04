@@ -1,10 +1,23 @@
 import { describe, expect, it } from 'vitest'
 
-import type { ProjectCard, Task } from './api/types'
+import type { GraphNode, Link, ProjectCard, Task } from './api/types'
+import { fileHref, fileKind } from './files'
 import { formatDeadline, parseDeadline } from './format'
+import { buildGraph } from './memoryGraph'
 import { sortProjects } from './overview'
 import { href, parse } from './router.svelte'
-import { columns, descendants, fields, matches, neighbour, parseTags, patch, sections, tree } from './tasks'
+import {
+  columns,
+  descendants,
+  fields,
+  history,
+  matches,
+  neighbour,
+  parseTags,
+  patch,
+  sections,
+  tree,
+} from './tasks'
 
 function task(id: string, extra: Partial<Task> = {}): Task {
   return {
@@ -20,6 +33,8 @@ function task(id: string, extra: Partial<Task> = {}): Task {
     description: null,
     blocked_reason: null,
     note: null,
+    deliverable: null,
+    deliverable_available: false,
     rev: 1,
     created_at: '2026-10-01T10:00:00Z',
     updated_at: '2026-10-01T10:00:00Z',
@@ -35,6 +50,7 @@ describe('router', () => {
     expect(parse('/projects/abc')).toMatchObject({ page: 'summary', project: 'abc' })
     expect(parse('/projects/abc/tasks', '?status=todo').query.get('status')).toBe('todo')
     expect(parse('/projects/abc/kanban').page).toBe('kanban')
+    expect(parse('/projects/abc/history').page).toBe('history')
     expect(parse('/projects/abc/memory/auth-jwt')).toMatchObject({ page: 'memory', node: 'auth-jwt' })
     expect(parse('/projects/abc/nope').page).toBe('missing')
     expect(parse('/autre').page).toBe('missing')
@@ -103,6 +119,19 @@ describe('tasks', () => {
     const list = [task('T-1'), task('T-2', { parent: 'T-1' }), task('T-3', { parent: 'T-2' }), task('T-4')]
     expect(descendants(list, 'T-1')).toEqual(['T-2', 'T-3'])
   })
+
+  it('lists the latest tasks first, closed ones by their closing date', () => {
+    const list = [
+      task('T-1', { updated_at: '2026-10-05T10:00:00Z' }),
+      task('T-2', { status: 'done', updated_at: '2026-10-09T10:00:00Z', done_at: '2026-10-03T10:00:00Z' }),
+      task('T-3', { updated_at: '2026-10-07T10:00:00Z' }),
+    ]
+    expect(history(list).map((t) => t.id)).toEqual(['T-3', 'T-1', 'T-2'])
+    // Same second: the newest task first, T-10 after T-9.
+    const tie = [task('T-9'), task('T-10'), task('T-2')]
+    expect(history(tie).map((t) => t.id)).toEqual(['T-10', 'T-9', 'T-2'])
+    expect(history(list, 2)).toHaveLength(2)
+  })
 })
 
 describe('deadlines', () => {
@@ -159,5 +188,48 @@ describe('overview', () => {
     expect(sortProjects(cards, 'name').map((c) => c.id)).toEqual(['a', 'b', 'd', 'c'])
     expect(sortProjects(cards, 'activity').map((c) => c.id)).toEqual(['a', 'b', 'd', 'c'])
     expect(sortProjects(cards, 'urgency').map((c) => c.id)).toEqual(['d', 'b', 'a', 'c'])
+  })
+})
+
+describe('memory graph', () => {
+  const line = (id: string, links: GraphNode['links']): GraphNode => ({
+    id,
+    kind: 'fact',
+    title: id,
+    description: '',
+    tags: [],
+    pinned: false,
+    updated: '2026-10-01T10:00:00Z',
+    superseded_by: null,
+    broken_links: 0,
+    contradicts: [],
+    links,
+  })
+  const to = (target_type: Link['target_type'], target: string, broken = false): Link => ({
+    kind: 'relates_to',
+    target_type,
+    target,
+    title: null,
+    note: null,
+    broken,
+  })
+
+  it('draws node links as edges and keeps files, URLs and tasks in the card', () => {
+    const { nodes, edges } = buildGraph([
+      line('a', [to('node', 'b'), to('node', 'absent'), to('file', 'fig/courbe.svg'), to('task', 'T-1')]),
+      line('b', [to('file', 'fig/manquant.png', true), to('url', 'https://exemple.org')]),
+    ])
+    expect(edges.map((e) => e.id)).toEqual(['a->b:relates_to'])
+    expect(nodes[0].data.attachments.map((l) => l.target)).toEqual(['fig/courbe.svg', 'T-1'])
+    expect(nodes[0].data.preview).toBe('fig/courbe.svg')
+    // A broken image gets no thumbnail.
+    expect(nodes[1].data.preview).toBeNull()
+  })
+
+  it('classifies files and builds their URL', () => {
+    expect(fileKind('rapport/fiche.PDF')).toBe('pdf')
+    expect(fileKind('https://exemple.org/x.pdf')).toBe('url')
+    expect(fileKind('README')).toBe('other')
+    expect(fileHref('mon projet', 'fig/été 1.png')).toBe('/api/projects/mon%20projet/files/fig/%C3%A9t%C3%A9%201.png')
   })
 })
