@@ -21,6 +21,8 @@ pub struct Input<'a> {
     pub graph: &'a Graph,
     pub access: &'a AccessLog,
     pub clock: &'a Clock,
+    /// Language memory nodes are written in.
+    pub memory_lang: &'a str,
 }
 
 /// Usage instructions for the Altium MCP tools, shared with the MCP server.
@@ -42,7 +44,7 @@ pub fn build(input: &Input, budget: usize) -> String {
     let header = header(input);
     let usage = format!(
         "## Altium usage\n{}\n",
-        instructions(input.project.config.memory_lang())
+        instructions(input.memory_lang)
     );
 
     let ordered = order(input.tasks, input.clock);
@@ -234,6 +236,7 @@ mod tests {
             graph: &graph,
             access: &AccessLog::new(),
             clock: &clock(),
+            memory_lang: p.config.memory_lang(),
         };
         let text = build(&input, 2000);
         assert!(text.starts_with("# Altium project: foo (phase: idea)\nSummary: API en place, reste l'auth.\n"));
@@ -256,6 +259,7 @@ mod tests {
             graph: &graph,
             access: &AccessLog::new(),
             clock: &clock(),
+            memory_lang: p.config.memory_lang(),
         };
         let text = build(&input, 2000);
         assert!(estimate_tokens(&text) <= 2000, "{}", estimate_tokens(&text));

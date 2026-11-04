@@ -242,7 +242,7 @@ pub fn detail(store: &Store, project: &Project, config: &GlobalConfig, clock: &C
         path: store.root().display().to_string(),
         read_only: store.is_read_only(),
         phases: project.config.phases(),
-        memory_lang: project.config.memory_lang().to_owned(),
+        memory_lang: config.memory_lang(&project.config).to_owned(),
         near_hours: near,
         status,
         progress,

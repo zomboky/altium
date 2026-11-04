@@ -8,6 +8,7 @@ use std::path::PathBuf;
 
 use altium_core::activity::{self, Sessions};
 use altium_core::actor::Actor;
+use altium_core::config::GlobalConfig;
 use altium_core::context::instructions;
 use altium_core::graph::{Search, World, link_name};
 use altium_core::memory::{LinkTarget, LinkType, NodeKind};
@@ -93,12 +94,11 @@ impl Server {
             .get("protocolVersion")
             .and_then(Value::as_str)
             .unwrap_or(PROTOCOL_VERSION);
-        let lang = self
-            .store()
-            .ok()
-            .and_then(|s| s.project().ok())
-            .map(|p| p.config.memory_lang().to_owned())
-            .unwrap_or_else(|| "en".into());
+        let config = GlobalConfig::for_user();
+        let lang = match self.store().ok().and_then(|s| s.project().ok()) {
+            Some(project) => config.memory_lang(&project.config).to_owned(),
+            None => config.default_memory_lang().to_owned(),
+        };
         json!({
             "protocolVersion": version,
             "capabilities": {"tools": {}},

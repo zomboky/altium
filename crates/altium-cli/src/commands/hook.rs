@@ -84,6 +84,7 @@ fn session_context(store: &Store) -> Result<String> {
     }
     let access: AccessLog = store.read_runtime(altium_core::graph::ACCESS_FILE);
     let clock = Clock::system();
+    let config = altium_core::config::GlobalConfig::for_user();
     let input = Input {
         project: &project,
         status: &status,
@@ -91,6 +92,7 @@ fn session_context(store: &Store) -> Result<String> {
         graph: &graph,
         access: &access,
         clock: &clock,
+        memory_lang: config.memory_lang(&project.config),
     };
     let text = context::build(&input, project.config.context_budget());
     let output = json!({
