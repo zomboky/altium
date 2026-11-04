@@ -1,0 +1,4 @@
+node_modules/
+dist/
+# Snapshot of a real project's memory: stays on this machine.
+src/data/
