@@ -3,6 +3,7 @@
 
   import { KIND_LABELS } from '../../lib/format'
   import { FILE_ICONS, fileHref, fileKind, fileName } from '../../lib/files'
+  import { t } from '../../lib/i18n.svelte'
   import type { CardFlowNode } from '../../lib/memoryGraph'
   import { href, link } from '../../lib/router.svelte'
   import { graphView } from './view.svelte'
@@ -16,9 +17,9 @@
 
 <NodeToolbar position={Position.Top} offset={8}>
   <div class="toolbar">
-    <a class="button" href={nodeHref} onclick={link}>Lire</a>
-    <button onclick={() => view.pin(id, !node.pinned)}>{node.pinned ? 'Désépingler' : 'Épingler'}</button>
-    <button onclick={() => view.centre(id)} title="Zoomer sur ce nœud">Centrer</button>
+    <a class="button" href={nodeHref} onclick={link}>{t('Read', 'Lire')}</a>
+    <button onclick={() => view.pin(id, !node.pinned)}>{node.pinned ? t('Unpin', 'Désépingler') : t('Pin', 'Épingler')}</button>
+    <button onclick={() => view.centre(id)} title={t('Zoom to this node', 'Zoomer sur ce nœud')}>{t('Centre', 'Centrer')}</button>
   </div>
 </NodeToolbar>
 
@@ -34,8 +35,8 @@
 >
   <header>
     <span class="kind">{KIND_LABELS[node.kind]}</span>
-    {#if node.pinned}<span title="Épinglé">📌</span>{/if}
-    {#if node.broken_links > 0}<span class="chip overdue" title="Liens cassés">{node.broken_links} ⚠</span>{/if}
+    {#if node.pinned}<span title={t('Pinned', 'Épinglé')}>📌</span>{/if}
+    {#if node.broken_links > 0}<span class="chip overdue" title={t('Broken links', 'Liens cassés')}>{node.broken_links} ⚠</span>{/if}
     {#if node.contradicts.length > 0}<span class="chip near">contradiction</span>{/if}
   </header>
   <a class="title" href={nodeHref} onclick={link}>{node.title}</a>
@@ -55,7 +56,7 @@
             >☑️ {l.title ?? l.target}</a
           >
         {:else if l.broken}
-          <span class="attachment broken" title="Introuvable : {l.target}">{FILE_ICONS[fileKind(l.target)]} {fileName(l.target)}</span>
+          <span class="attachment broken" title={t(`Not found: ${l.target}`, `Introuvable : ${l.target}`)}>{FILE_ICONS[fileKind(l.target)]} {fileName(l.target)}</span>
         {:else if l.target_type === 'url'}
           <a class="attachment" href={l.target} target="_blank" rel="noopener noreferrer" title={l.note ?? l.target}
             >🔗 {l.title ?? fileName(l.target)}</a

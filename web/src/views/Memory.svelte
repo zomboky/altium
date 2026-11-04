@@ -6,6 +6,7 @@
   import { attempt } from '../lib/actions'
   import { clock } from '../lib/clock.svelte'
   import { KIND_LABELS, LINK_LABELS, relative } from '../lib/format'
+  import { t } from '../lib/i18n.svelte'
   import { Resource } from '../lib/resource.svelte'
   import { LAYOUTS, type LayoutName } from '../lib/layouts'
   import { href, link, router } from '../lib/router.svelte'
@@ -75,27 +76,27 @@
 
 {#snippet filters()}
   <div class="filters">
-    <div class="modes" role="group" aria-label="Affichage">
-      <button class:active={!graph} aria-pressed={!graph} onclick={() => router.setQuery({ view: null })}>Liste</button>
+    <div class="modes" role="group" aria-label={t('Display', 'Affichage')}>
+      <button class:active={!graph} aria-pressed={!graph} onclick={() => router.setQuery({ view: null })}>{t('List', 'Liste')}</button>
       <button class:active={graph} aria-pressed={graph} onclick={() => router.setQuery({ view: 'graph' })} data-testid="graph-mode"
-        >Graphe</button
+        >{t('Graph', 'Graphe')}</button
       >
     </div>
     <input
       id="search"
       type="search"
-      placeholder="Rechercher (/)"
+      placeholder={t('Search (/)', 'Rechercher (/)')}
       value={text}
       oninput={(e) => router.setQuery({ text: e.currentTarget.value })}
-      aria-label="Rechercher dans la mémoire"
+      aria-label={t('Search the memory', 'Rechercher dans la mémoire')}
     />
     <select value={kind} onchange={(e) => router.setQuery({ kind: e.currentTarget.value })} aria-label="Type">
-      <option value="">Tous types</option>
+      <option value="">{t('All kinds', 'Tous types')}</option>
       {#each NODE_KINDS as k (k)}<option value={k}>{KIND_LABELS[k]}</option>{/each}
     </select>
     <select value={tag} onchange={(e) => router.setQuery({ tag: e.currentTarget.value })} aria-label="Tag">
-      <option value="">Tous tags</option>
-      {#each tags as t (t)}<option value={t}>#{t}</option>{/each}
+      <option value="">{t('All tags', 'Tous tags')}</option>
+      {#each tags as name (name)}<option value={name}>#{name}</option>{/each}
     </select>
   </div>
 {/snippet}
@@ -106,7 +107,7 @@
     <p class="error">{nodes.error}</p>
   {:else if nodes.data}
     {#await import('../components/graph/MemoryGraph.svelte')}
-      <p class="muted">Chargement du graphe…</p>
+      <p class="muted">{t('Loading the graph…', 'Chargement du graphe…')}</p>
     {:then { default: MemoryGraph }}
       <MemoryGraph
         {project}
@@ -120,7 +121,7 @@
       />
     {/await}
   {:else}
-    <p class="muted">Chargement…</p>
+    <p class="muted">{t('Loading…', 'Chargement…')}</p>
   {/if}
 {:else}
   <div class="layout">
@@ -128,22 +129,26 @@
       {@render filters()}
       {#if index.error}<p class="error">{index.error}</p>{/if}
       {#if index.data && index.data.length === 0}
-        <p class="muted">Aucun nœud{text || kind || tag ? ' ne correspond' : ' de mémoire pour ce projet'}.</p>
+        <p class="muted">
+          {text || kind || tag
+            ? t('No node matches.', 'Aucun nœud ne correspond.')
+            : t('No memory node in this project.', 'Aucun nœud de mémoire pour ce projet.')}
+        </p>
       {/if}
       <ul>
         {#each index.data ?? [] as n (n.id)}
           <li class:current={n.id === node} class:superseded={n.superseded_by}>
             <a href={nodeHref(n.id)} onclick={link} data-testid="node-link">
               <span class="head">
-                {#if n.pinned}<span title="Épinglé">📌</span>{/if}
+                {#if n.pinned}<span title={t('Pinned', 'Épinglé')}>📌</span>{/if}
                 <strong>{n.title}</strong>
                 <span class="chip">{KIND_LABELS[n.kind]}</span>
               </span>
               <span class="muted desc">{n.description}</span>
               <span class="flags">
-                {#if n.broken_links > 0}<span class="chip overdue">{n.broken_links} lien cassé{n.broken_links > 1 ? 's' : ''}</span>{/if}
+                {#if n.broken_links > 0}<span class="chip overdue">{n.broken_links} {n.broken_links > 1 ? t('broken links', 'liens cassés') : t('broken link', 'lien cassé')}</span>{/if}
                 {#if n.contradicts.length > 0}<span class="chip near">contradiction</span>{/if}
-                {#if n.superseded_by}<span class="chip">remplacé par {n.superseded_by}</span>{/if}
+                {#if n.superseded_by}<span class="chip">{t('superseded by', 'remplacé par')} {n.superseded_by}</span>{/if}
               </span>
             </a>
           </li>
@@ -153,7 +158,7 @@
 
     <section class="detail">
       {#if !node}
-        <p class="muted">Choisis un nœud pour le lire.</p>
+        <p class="muted">{t('Pick a node to read it.', 'Choisis un nœud pour le lire.')}</p>
       {:else if detail.error}
         <p class="error">{detail.error}</p>
       {:else if detail.data}
@@ -163,23 +168,23 @@
             <div>
               <h1>{n.title}</h1>
               <p class="muted">
-                <span class="mono">{n.id}</span> · {KIND_LABELS[n.kind]} · mis à jour {relative(n.updated, clock.now)}
-                {#each n.tags as t (t)}
-                  <button class="chip tag" onclick={() => router.setQuery({ tag: t })}>#{t}</button>
+                <span class="mono">{n.id}</span> · {KIND_LABELS[n.kind]} · {t('updated', 'mis à jour')} {relative(n.updated, clock.now)}
+                {#each n.tags as name (name)}
+                  <button class="chip tag" onclick={() => router.setQuery({ tag: name })}>#{name}</button>
                 {/each}
               </p>
             </div>
-            <button onclick={() => pin(n)}>{n.pinned ? 'Désépingler' : 'Épingler'}</button>
+            <button onclick={() => pin(n)}>{n.pinned ? t('Unpin', 'Désépingler') : t('Pin', 'Épingler')}</button>
           </header>
           <p class="description">{n.description}</p>
           {#if n.superseded_by}
             <p class="warning">
-              Remplacé par <a href={nodeHref(n.superseded_by)} onclick={link}>{n.superseded_by}</a>.
+              {t('Superseded by', 'Remplacé par')} <a href={nodeHref(n.superseded_by)} onclick={link}>{n.superseded_by}</a>.
             </p>
           {/if}
           {#if n.contradicts.length > 0}
             <p class="warning">
-              Contradiction avec
+              {t('Contradicts', 'Contradiction avec')}
               {#each n.contradicts as c, i (c)}{i > 0 ? ', ' : ''}<a href={nodeHref(c)} onclick={link}>{c}</a>{/each}.
             </p>
           {/if}
@@ -192,7 +197,7 @@
                 {#each list as l, i (l.kind + l.target + i)}
                   {@const url = target(l)}
                   <li class:broken={l.broken}>
-                    <span class="muted">{outgoing ? '' : `${l.target} `}{LINK_LABELS[l.kind] ?? l.kind}{outgoing ? '' : ' ce nœud'}</span>
+                    <span class="muted">{outgoing ? '' : `${l.target} `}{LINK_LABELS[l.kind] ?? l.kind}{outgoing ? '' : t(' this node', ' ce nœud')}</span>
                     {#if outgoing}
                       {#if l.target_type === 'file'}
                         <FileLink {project} target={l.target} available={!l.broken} title={l.title} />
@@ -206,8 +211,14 @@
                       {:else}
                         <span class="mono">{l.title ?? l.target}</span>
                       {/if}
-                      <span class="chip">{l.target_type === 'node' ? 'nœud' : l.target_type === 'task' ? 'task' : l.target_type === 'file' ? 'fichier' : 'lien'}</span>
-                      {#if l.broken}<span class="chip overdue">cassé</span>{/if}
+                      <span class="chip">{l.target_type === 'node'
+                          ? t('node', 'nœud')
+                          : l.target_type === 'task'
+                            ? 'task'
+                            : l.target_type === 'file'
+                              ? t('file', 'fichier')
+                              : t('link', 'lien')}</span>
+                      {#if l.broken}<span class="chip overdue">{t('broken', 'cassé')}</span>{/if}
                       {#if l.note}<span class="muted small">— {l.note}</span>{/if}
                     {:else}
                       <a href={nodeHref(l.target)} onclick={link}>{l.title ?? l.target}</a>
@@ -218,11 +229,11 @@
             {/if}
           {/snippet}
 
-          {@render links(n.links, 'Liens sortants', true)}
-          {@render links(n.incoming, 'Liens entrants', false)}
+          {@render links(n.links, t('Outgoing links', 'Liens sortants'), true)}
+          {@render links(n.incoming, t('Incoming links', 'Liens entrants'), false)}
         </article>
       {:else}
-        <p class="muted">Chargement…</p>
+        <p class="muted">{t('Loading…', 'Chargement…')}</p>
       {/if}
     </section>
   </div>

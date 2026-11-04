@@ -1,21 +1,22 @@
 <script lang="ts">
   import type { Health, Progress } from '../lib/api'
+  import { t } from '../lib/i18n.svelte'
 
   let { health, progress }: { health: Health; progress: Progress | null } = $props()
 </script>
 
 <span class="health">
   {#if health.overdue}
-    <span class="chip overdue">{progress?.overdue ?? ''} en retard</span>
+    <span class="chip overdue">{progress?.overdue ?? ''} {t('overdue', 'en retard')}</span>
   {/if}
   {#if health.blocked}
-    <span class="chip blocked">{progress?.blocked ?? ''} bloquée{(progress?.blocked ?? 0) > 1 ? 's' : ''}</span>
+    <span class="chip blocked">{progress?.blocked ?? ''} {t('blocked', (progress?.blocked ?? 0) > 1 ? 'bloquées' : 'bloquée')}</span>
   {/if}
   {#if health.active}
-    <span class="chip active">● Claude actif</span>
+    <span class="chip active">● {t('Claude active', 'Claude actif')}</span>
   {/if}
   {#if !health.overdue && !health.blocked}
-    <span class="chip ok">✓ à jour</span>
+    <span class="chip ok">✓ {t('on track', 'à jour')}</span>
   {/if}
 </span>
 

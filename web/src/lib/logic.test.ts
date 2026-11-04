@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 
 import type { GraphNode, Link, ProjectCard, Task } from './api/types'
 import { fileHref, fileKind } from './files'
-import { formatDeadline, parseDeadline } from './format'
+import { formatDeadline, parseDeadline, relative } from './format'
+import { setLang } from './i18n.svelte'
 import { buildGraph } from './memoryGraph'
 import { sortProjects } from './overview'
 import { href, parse } from './router.svelte'
@@ -144,7 +145,20 @@ describe('deadlines', () => {
   it('shows the time only when there is one', () => {
     const now = new Date(2026, 9, 29)
     expect(formatDeadline('2026-11-02', now)).not.toMatch(/:/)
+    setLang('fr')
     expect(formatDeadline('2026-11-02T18:30', now)).toMatch(/18:30/)
+    setLang('en')
+    expect(formatDeadline('2026-11-02T18:30', now)).toMatch(/Nov 2 06:30\sPM/)
+  })
+
+  it('writes relative times in the chosen language', () => {
+    const now = new Date(2026, 9, 29, 12)
+    const before = new Date(2026, 9, 29, 11, 55)
+    setLang('fr')
+    expect(relative(before, now)).toBe('il y a 5 min')
+    setLang('en')
+    expect(relative(before, now)).toBe('5 min ago')
+    expect(relative(new Date(2026, 10, 1, 12), now)).toBe('in 3 d')
   })
 })
 

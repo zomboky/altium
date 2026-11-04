@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Progress } from '../lib/api'
+  import { t } from '../lib/i18n.svelte'
 
   let { progress }: { progress: Progress } = $props()
 
@@ -10,13 +11,13 @@
   )
 </script>
 
-<div class="progress" title="{progress.done}/{progress.total} tasks terminées">
+<div class="progress" title={t(`${progress.done}/${progress.total} tasks done`, `${progress.done}/${progress.total} tasks terminées`)}>
   <div class="bar">
     {#each parts as part (part.status)}
       <span class={part.status} style="flex-grow: {part.count}"></span>
     {/each}
   </div>
-  <span class="label">{progress.percent} % <span class="muted">({progress.done}/{progress.total})</span></span>
+  <span class="label">{t(`${progress.percent}%`, `${progress.percent} %`)} <span class="muted">({progress.done}/{progress.total})</span></span>
 </div>
 
 <style>

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { FILE_ICONS, FILE_LABELS, fileKind, fileName, isUrl } from '../lib/files'
+  import { t } from '../lib/i18n.svelte'
   import FileViewer from './FileViewer.svelte'
 
   let {
@@ -32,11 +33,11 @@
     class="file link"
     class:compact
     onclick={() => (viewing = true)}
-    title="{FILE_LABELS[kind]} : {target}"
+    title={t(`${FILE_LABELS[kind]}: ${target}`, `${FILE_LABELS[kind]} : ${target}`)}
     data-testid="file-link">{FILE_ICONS[kind]}{#if !compact}&nbsp;{fileName(target)}{/if}</button
   >
 {:else}
-  <span class="file missing muted" title="Introuvable dans le projet : {target}"
+  <span class="file missing muted" title={t(`Not found in the project: ${target}`, `Introuvable dans le projet : ${target}`)}
     >{FILE_ICONS[kind]}{#if !compact}&nbsp;{fileName(target)}{/if}</span
   >
 {/if}

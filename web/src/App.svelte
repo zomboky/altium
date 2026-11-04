@@ -2,6 +2,7 @@
   import { onDestroy, tick } from 'svelte'
 
   import { type Api, type Live, type ProjectCard, provide } from './lib/api'
+  import { LANGS, type Lang, i18n, setLang, t } from './lib/i18n.svelte'
   import { Resource } from './lib/resource.svelte'
   import { TABS, href, link, router } from './lib/router.svelte'
   import { SHORTCUTS, typing, ui } from './lib/ui.svelte'
@@ -92,13 +93,13 @@
 <svelte:window onkeydown={onkey} />
 
 {#if !live.connected}
-  <div class="banner" role="status">Déconnecté du serveur Altium, reconnexion…</div>
+  <div class="banner" role="status">{t('Disconnected from the Altium server, reconnecting…', 'Déconnecté du serveur Altium, reconnexion…')}</div>
 {/if}
 
 <header>
   <a class="brand" href="/" onclick={link}>Altium</a>
   {#if route.project}
-    <button class="project" onclick={() => (ui.switching = true)} title="Changer de projet (p)">
+    <button class="project" onclick={() => (ui.switching = true)} title={t('Switch project (p)', 'Changer de projet (p)')}>
       {current?.name ?? route.project} <span class="muted">▾</span>
     </button>
     <nav>
@@ -112,14 +113,25 @@
       {/each}
     </nav>
   {/if}
-  <button class="help" onclick={() => (ui.help = true)} title="Raccourcis clavier (?)">?</button>
+  <select
+    class="lang"
+    value={i18n.lang}
+    onchange={(e) => setLang(e.currentTarget.value as Lang)}
+    aria-label={t('Language', 'Langue')}
+  >
+    {#each Object.entries(LANGS) as [value, name] (value)}<option {value}>{name}</option>{/each}
+  </select>
+  <button class="help" onclick={() => (ui.help = true)} title={t('Keyboard shortcuts (?)', 'Raccourcis clavier (?)')}>?</button>
 </header>
 
 <main>
   {#if route.page === 'overview'}
     <Overview {projects} />
   {:else if route.page === 'missing' || !route.project}
-    <p>Page introuvable. <a href="/" onclick={link}>Retour à la vue d’ensemble</a></p>
+    <p>
+      {t('Page not found.', 'Page introuvable.')}
+      <a href="/" onclick={link}>{t('Back to the overview', 'Retour à la vue d’ensemble')}</a>
+    </p>
   {:else}
     {#key route.project}
       {#if route.page === 'summary'}
@@ -156,14 +168,14 @@
 {/if}
 
 <dialog bind:this={helpDialog} onclose={() => (ui.help = false)}>
-  <h2>Raccourcis clavier</h2>
+  <h2>{t('Keyboard shortcuts', 'Raccourcis clavier')}</h2>
   <dl>
-    {#each SHORTCUTS as [key, label] (key)}
+    {#each SHORTCUTS as [key, en, fr] (key)}
       <dt><kbd>{key}</kbd></dt>
-      <dd>{label}</dd>
+      <dd>{t(en, fr)}</dd>
     {/each}
   </dl>
-  <button onclick={() => (ui.help = false)}>Fermer</button>
+  <button onclick={() => (ui.help = false)}>{t('Close', 'Fermer')}</button>
 </dialog>
 
 <style>
@@ -219,8 +231,12 @@
     color: var(--text);
   }
 
-  .help {
+  .lang {
     margin-left: auto;
+    width: auto;
+  }
+
+  .help {
     border-radius: 999px;
     width: 2rem;
     height: 2rem;

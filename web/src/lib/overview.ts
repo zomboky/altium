@@ -1,12 +1,22 @@
 import type { ProjectCard } from './api/types'
 import { parseDeadline } from './format'
+import { locale, t } from './i18n.svelte'
 
 export type Sort = 'activity' | 'name' | 'urgency'
 
-export const SORTS: { value: Sort; label: string }[] = [
-  { value: 'activity', label: 'Dernière activité' },
-  { value: 'name', label: 'Nom' },
-  { value: 'urgency', label: 'Urgence' },
+function option(value: Sort, en: string, fr: string): { value: Sort; label: string } {
+  return {
+    value,
+    get label() {
+      return t(en, fr)
+    },
+  }
+}
+
+export const SORTS = [
+  option('activity', 'Last activity', 'Dernière activité'),
+  option('name', 'Name', 'Nom'),
+  option('urgency', 'Urgency', 'Urgence'),
 ]
 
 function urgency(card: ProjectCard): [number, number, number, number] {
@@ -24,14 +34,14 @@ function compareTuples(a: number[], b: number[]): number {
 export function sortProjects(cards: ProjectCard[], sort: Sort): ProjectCard[] {
   const by = (a: ProjectCard, b: ProjectCard): number => {
     if (a.present !== b.present) return a.present ? -1 : 1
-    if (sort === 'name') return a.name.localeCompare(b.name, 'fr')
+    if (sort === 'name') return a.name.localeCompare(b.name, locale())
     if (sort === 'urgency') {
       const order = compareTuples(urgency(a), urgency(b))
       if (order !== 0) return order
     }
     // Active sessions first, then most recent activity.
     if (!!a.session !== !!b.session) return a.session ? -1 : 1
-    return (b.last_activity ?? '').localeCompare(a.last_activity ?? '') || a.name.localeCompare(b.name, 'fr')
+    return (b.last_activity ?? '').localeCompare(a.last_activity ?? '') || a.name.localeCompare(b.name, locale())
   }
   return [...cards].sort(by)
 }

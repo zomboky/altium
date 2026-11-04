@@ -12,7 +12,7 @@ Claude keeps each project's state in a small `.altium/` folder: a status summary
 - **Local only.** Plain text files you can commit, a server bound to `127.0.0.1`, no account, no cloud.
 - **Keeps itself up to date.** `altium update` rebuilds the latest version, and the first command of the day checks for one in the background.
 
-> **Status: V1.** Tested on Windows 11; validation on Linux ([Omarchy](https://omarchy.org)) is in progress, see [`docs/validation.md`](docs/validation.md). The command line and the dashboard are in French; the files Altium writes and the instructions Claude receives are in English, and memory notes are written in the language you choose.
+> **Status: V1.** Tested on Windows 11; validation on Linux ([Omarchy](https://omarchy.org)) is in progress, see [`docs/validation.md`](docs/validation.md). The command line is in French, the dashboard in English or French (it follows the browser, with a switch in its header); the files Altium writes and the instructions Claude receives are in English, and memory notes are written in the language you choose.
 
 ## Contents
 

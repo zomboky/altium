@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte'
 
+  import { t } from '../lib/i18n.svelte'
+
   let {
     task,
     title,
@@ -28,7 +30,7 @@
 
 <dialog bind:this={dialog} onclose={() => answer(null)} aria-labelledby="reason-title">
   <form onsubmit={submit}>
-    <h2 id="reason-title">Pourquoi {task} est bloquée ?</h2>
+    <h2 id="reason-title">{t(`Why is ${task} blocked?`, `Pourquoi ${task} est bloquée ?`)}</h2>
     <p class="muted">{title}</p>
     <!-- svelte-ignore a11y_autofocus -->
     <input
@@ -36,12 +38,12 @@
       required
       maxlength="200"
       bind:value={reason}
-      placeholder="En attente de…"
-      aria-label="Raison du blocage"
+      placeholder={t('Waiting for…', 'En attente de…')}
+      aria-label={t('Blocking reason', 'Raison du blocage')}
     />
     <div class="actions">
-      <button type="button" onclick={() => answer(null)}>Annuler</button>
-      <button type="submit" class="primary" disabled={!reason.trim()}>Bloquer</button>
+      <button type="button" onclick={() => answer(null)}>{t('Cancel', 'Annuler')}</button>
+      <button type="submit" class="primary" disabled={!reason.trim()}>{t('Block', 'Bloquer')}</button>
     </div>
   </form>
 </dialog>

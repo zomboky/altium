@@ -4,6 +4,7 @@
   import { SvelteFlowProvider } from '@xyflow/svelte'
 
   import type { GraphNode } from '../../lib/api'
+  import { t } from '../../lib/i18n.svelte'
   import { LAYOUTS, type LayoutName } from '../../lib/memoryGraph'
   import FileViewer from '../FileViewer.svelte'
   import GraphCanvas from './GraphCanvas.svelte'
@@ -49,18 +50,28 @@
 
 <div class="bar">
   <label>
-    Placement
-    <select value={layout} onchange={(e) => onlayout(e.currentTarget.value as LayoutName)} aria-label="Placement">
+    {t('Layout', 'Placement')}
+    <select value={layout} onchange={(e) => onlayout(e.currentTarget.value as LayoutName)} aria-label={t('Layout', 'Placement')}>
       {#each Object.entries(LAYOUTS) as [value, label] (value)}<option {value}>{label}</option>{/each}
     </select>
   </label>
-  <span class="muted">{list.length} nœuds · {links} liens · {attachments} pièces jointes</span>
-  <span class="muted hint">Survole un nœud pour voir ses voisins ; clique une pièce jointe pour l’ouvrir.</span>
+  <span class="muted"
+    >{t(
+      `${list.length} nodes · ${links} links · ${attachments} attachments`,
+      `${list.length} nœuds · ${links} liens · ${attachments} pièces jointes`,
+    )}</span
+  >
+  <span class="muted hint"
+    >{t(
+      'Hover a node to see its neighbours; click an attachment to open it.',
+      'Survole un nœud pour voir ses voisins ; clique une pièce jointe pour l’ouvrir.',
+    )}</span
+  >
 </div>
 
 <div class="memory-graph" data-testid="memory-graph">
   {#if list.length === 0}
-    <p class="muted empty">Aucun nœud de mémoire pour ce projet.</p>
+    <p class="muted empty">{t('No memory node in this project.', 'Aucun nœud de mémoire pour ce projet.')}</p>
   {:else}
     <SvelteFlowProvider>
       <GraphCanvas {view} {list} {text} {kind} {tag} />

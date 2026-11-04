@@ -66,18 +66,18 @@ export function mcp(calls: { name: string; arguments: Record<string, unknown> }[
     })
 }
 
-/** A fresh environment with one project, `Démo`, initialized and set up. */
-export function prepare() {
+/** A fresh environment with one project, `name`, initialized and set up. */
+export function prepare(name = 'Démo') {
   rmSync(ROOT, { recursive: true, force: true })
   for (const dir of ['config', 'claude', 'home', 'demo']) mkdirSync(join(ROOT, dir), { recursive: true })
-  writeFileSync(join(PROJECT, 'README.md'), '# Démo\n')
+  writeFileSync(join(PROJECT, 'README.md'), `# ${name}\n`)
   try {
     execFileSync('git', ['init', '-q'], { cwd: PROJECT })
   } catch {
     // Without git, the dashboard just shows no repository.
   }
   altium(['setup'])
-  altium(['init', '--name', 'Démo'], { cwd: PROJECT })
+  altium(['init', '--name', name], { cwd: PROJECT })
 }
 
 export function serve(): ChildProcess {

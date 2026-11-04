@@ -12,6 +12,7 @@
   } from '../lib/api'
   import { send } from '../lib/actions'
   import { PRIORITY_LABELS, STATUS_LABELS, actor, relative } from '../lib/format'
+  import { t } from '../lib/i18n.svelte'
   import { descendants, fields, parseTags, patch } from '../lib/tasks'
   import { FILE_ICONS, fileKind, isUrl } from '../lib/files'
   import FileViewer from './FileViewer.svelte'
@@ -72,7 +73,7 @@
 
   // A task cannot become the child of itself or of its own subtasks.
   const excluded = $derived(task ? new Set([task.id, ...descendants(tasks, task.id)]) : new Set<string>())
-  const parents = $derived(tasks.filter((t) => !excluded.has(t.id)))
+  const parents = $derived(tasks.filter((other) => !excluded.has(other.id)))
 
   onMount(() => {
     dialog.showModal()
@@ -115,7 +116,7 @@
     const values = edited()
     if (!values.title) return
     if (values.status === 'blocked' && !values.blocked_reason) {
-      error = 'Une task bloquée a besoin d’une raison.'
+      error = t('A blocked task needs a reason.', 'Une task bloquée a besoin d’une raison.')
       return
     }
     saving = true
@@ -164,8 +165,12 @@
   async function remove() {
     if (!task) return
     const children = descendants(tasks, task.id).length
-    const what = children > 0 ? ` et ses ${children} sous-tâche${children > 1 ? 's' : ''}` : ''
-    if (!confirm(`Supprimer ${task.id}${what} ? Pour garder une trace, passe-la plutôt à « Annulé ».`)) return
+    const s = children > 1 ? 's' : ''
+    const question = t(
+      `Delete ${task.id}${children > 0 ? ` and its ${children} subtask${s}` : ''}? To keep a trace, set it to “Cancelled” instead.`,
+      `Supprimer ${task.id}${children > 0 ? ` et ses ${children} sous-tâche${s}` : ''} ? Pour garder une trace, passe-la plutôt à « Annulé ».`,
+    )
+    if (!confirm(question)) return
     try {
       await api.deleteTask(project, task.id)
       dialog.close()
@@ -177,10 +182,10 @@
 
 <dialog bind:this={dialog} {onclose} aria-labelledby="task-form-title">
   <form onsubmit={submit}>
-    <h2 id="task-form-title">{task ? `Modifier ${task.id}` : 'Nouvelle task'}</h2>
+    <h2 id="task-form-title">{task ? t(`Edit ${task.id}`, `Modifier ${task.id}`) : t('New task', 'Nouvelle task')}</h2>
 
     <label class="wide">
-      Titre
+      {t('Title', 'Titre')}
       <input bind:this={titleInput} bind:value={title} required maxlength="200" name="title" />
     </label>
     <label class="wide">
@@ -189,13 +194,13 @@
     </label>
     <div class="row">
       <label>
-        Statut
+        {t('Status', 'Statut')}
         <select bind:value={taskStatus}>
           {#each STATUSES as s (s)}<option value={s}>{STATUS_LABELS[s]}</option>{/each}
         </select>
       </label>
       <label>
-        Priorité
+        {t('Priority', 'Priorité')}
         <select bind:value={priority}>
           {#each PRIORITIES as p (p)}<option value={p}>{PRIORITY_LABELS[p]}</option>{/each}
         </select>
@@ -205,13 +210,13 @@
         <input type="date" bind:value={date} />
       </label>
       <label>
-        Heure
+        {t('Time', 'Heure')}
         <input type="time" bind:value={time} disabled={!date} />
       </label>
     </div>
     {#if taskStatus === 'blocked'}
       <label class="wide">
-        Raison du blocage
+        {t('Blocking reason', 'Raison du blocage')}
         <input bind:value={reason} maxlength="200" required />
       </label>
     {/if}
@@ -221,36 +226,36 @@
         <input bind:value={tags} placeholder="api, front" />
       </label>
       <label class="grow">
-        Task parente
+        {t('Parent task', 'Task parente')}
         <select bind:value={parent}>
-          <option value="">(aucune)</option>
+          <option value="">{t('(none)', '(aucune)')}</option>
           {#each parents as p (p.id)}<option value={p.id}>{p.id} {p.title}</option>{/each}
         </select>
       </label>
     </div>
     <div class="row deliverable">
       <label class="grow">
-        Livrable
+        {t('Deliverable', 'Livrable')}
         <input
           bind:value={deliverable}
           name="deliverable"
-          placeholder="rapport/synthese.pdf ou https://…"
-          title="Chemin dans le projet ou URL"
+          placeholder={t('report/summary.pdf or https://…', 'rapport/synthese.pdf ou https://…')}
+          title={t('Path in the project or URL', 'Chemin dans le projet ou URL')}
         />
       </label>
       {#if task?.deliverable && task.deliverable_available && isUrl(task.deliverable)}
         <a class="button show" href={task.deliverable} target="_blank" rel="noopener noreferrer" data-testid="show-deliverable"
-          >🔗 Afficher le livrable ↗</a
+          >🔗 {t('Show the deliverable ↗', 'Afficher le livrable ↗')}</a
         >
       {:else if task?.deliverable && task.deliverable_available}
         <button type="button" class="show" onclick={() => (viewing = true)} data-testid="show-deliverable">
-          {FILE_ICONS[fileKind(task.deliverable)]} Afficher le livrable
+          {FILE_ICONS[fileKind(task.deliverable)]} {t('Show the deliverable', 'Afficher le livrable')}
         </button>
       {/if}
     </div>
     {#if task}
       <label class="wide">
-        Note de travail
+        {t('Work note', 'Note de travail')}
         <textarea bind:value={note} rows="2"></textarea>
       </label>
     {/if}
@@ -258,32 +263,32 @@
     {#if conflict}
       <div class="conflict" role="alert">
         <p>
-          <strong>{conflict.task.id} a été modifiée entre-temps</strong> ({conflict.fields.join(', ')}).
+          <strong>{t(`${conflict.task.id} was changed in the meantime`, `${conflict.task.id} a été modifiée entre-temps`)}</strong> ({conflict.fields.join(', ')}).
         </p>
         <div class="actions">
-          <button type="button" onclick={reload}>Prendre la version actuelle</button>
-          <button type="button" class="primary" onclick={overwrite}>Garder mes valeurs</button>
+          <button type="button" onclick={reload}>{t('Take the current version', 'Prendre la version actuelle')}</button>
+          <button type="button" class="primary" onclick={overwrite}>{t('Keep my values', 'Garder mes valeurs')}</button>
         </div>
       </div>
     {/if}
     {#if error}<p class="error" role="alert">{error}</p>{/if}
 
     <div class="actions">
-      {#if task}<button type="button" class="danger left" onclick={remove}>Supprimer</button>{/if}
-      <button type="button" onclick={() => dialog.close()}>Annuler</button>
+      {#if task}<button type="button" class="danger left" onclick={remove}>{t('Delete', 'Supprimer')}</button>{/if}
+      <button type="button" onclick={() => dialog.close()}>{t('Cancel', 'Annuler')}</button>
       <button type="submit" class="primary" disabled={saving || !title.trim() || !!conflict}>
-        {task ? 'Enregistrer' : 'Créer'}
+        {task ? t('Save', 'Enregistrer') : t('Create', 'Créer')}
       </button>
     </div>
 
     {#if detail && detail.history.length > 0}
       <details>
-        <summary class="muted">Historique</summary>
+        <summary class="muted">{t('History', 'Historique')}</summary>
         <ul class="history">
           {#each detail.history.slice(-8).reverse() as change, i (i)}
             <li>
               <span class="muted">{relative(change.at)}</span>
-              {actor(change.by)} : {change.action}
+              {actor(change.by)}{t(':', ' :')} {change.action}
               {#if change.fields.length}<span class="muted">({change.fields.join(', ')})</span>{/if}
             </li>
           {/each}
@@ -294,7 +299,7 @@
 </dialog>
 
 {#if viewing && task?.deliverable}
-  <FileViewer {project} target={task.deliverable} title={`Livrable de ${task.id}`} onclose={() => (viewing = false)} />
+  <FileViewer {project} target={task.deliverable} title={t(`Deliverable of ${task.id}`, `Livrable de ${task.id}`)} onclose={() => (viewing = false)} />
 {/if}
 
 <style>

@@ -8,6 +8,8 @@
 //   /projects/{id}/memory?kind=…       memory
 //   /projects/{id}/memory/{node}       one memory node
 
+import { t } from './i18n.svelte'
+
 export type Page = 'overview' | 'summary' | 'tasks' | 'kanban' | 'history' | 'activity' | 'memory' | 'missing'
 
 export interface Route {
@@ -17,13 +19,22 @@ export interface Route {
   query: URLSearchParams
 }
 
-export const TABS: { page: Page; label: string }[] = [
-  { page: 'summary', label: 'Synthèse' },
-  { page: 'tasks', label: 'Liste' },
-  { page: 'kanban', label: 'Kanban' },
-  { page: 'history', label: 'Historique' },
-  { page: 'activity', label: 'Activité' },
-  { page: 'memory', label: 'Mémoire' },
+function tab(page: Page, en: string, fr: string): { page: Page; label: string } {
+  return {
+    page,
+    get label() {
+      return t(en, fr)
+    },
+  }
+}
+
+export const TABS = [
+  tab('summary', 'Summary', 'Synthèse'),
+  tab('tasks', 'List', 'Liste'),
+  tab('kanban', 'Kanban', 'Kanban'),
+  tab('history', 'History', 'Historique'),
+  tab('activity', 'Activity', 'Activité'),
+  tab('memory', 'Memory', 'Mémoire'),
 ]
 
 export function parse(path: string, search = ''): Route {
@@ -41,11 +52,16 @@ export function parse(path: string, search = ''): Route {
   if (section === undefined) return route('summary', project)
   if (section === 'memory') return parts.length <= 4 ? route('memory', project, node ?? null) : route('missing')
   if (parts.length > 3) return route('missing')
-  if (section === 'tasks' || section === 'kanban' || section === 'history' || section === 'activity') return route(section, project)
+  if (section === 'tasks' || section === 'kanban' || section === 'history' || section === 'activity')
+    return route(section, project)
   return route('missing')
 }
 
-export function href(page: Page, project: string | null = null, extra: { node?: string; query?: Record<string, string> } = {}): string {
+export function href(
+  page: Page,
+  project: string | null = null,
+  extra: { node?: string; query?: Record<string, string> } = {},
+): string {
   let path = '/'
   if (project !== null && page !== 'overview') {
     path = `/projects/${encodeURIComponent(project)}`

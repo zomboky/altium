@@ -487,7 +487,7 @@ async fn project_file(
     if site == Some("cross-site") {
         return Err(ApiError::new(
             StatusCode::FORBIDDEN,
-            "fichier demandÃ© par un autre site",
+            "fichier demandé par un autre site",
         ));
     }
     let (store, _) = open(&state, &id)?;

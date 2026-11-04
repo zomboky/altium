@@ -16,5 +16,7 @@ export default defineConfig({
     baseURL: `http://127.0.0.1:${PORT}`,
     channel: process.env.PLAYWRIGHT_CHANNEL ?? (process.platform === 'win32' ? 'msedge' : undefined),
     trace: 'retain-on-failure',
+    // The tests read the French labels.
+    locale: 'fr-FR',
   },
 })

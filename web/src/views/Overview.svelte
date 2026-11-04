@@ -5,6 +5,7 @@
   import { type ProjectCard, services } from '../lib/api'
   import { clock } from '../lib/clock.svelte'
   import { duration, relative } from '../lib/format'
+  import { t } from '../lib/i18n.svelte'
   import { SORTS, type Sort, sortProjects } from '../lib/overview'
   import type { Resource } from '../lib/resource.svelte'
   import { href, link, router } from '../lib/router.svelte'
@@ -16,16 +17,16 @@
   const cards = $derived(sortProjects(projects.data ?? [], sort))
 
   async function forget(card: ProjectCard) {
-    if (!confirm(`Oublier « ${card.name} » ? Son dossier n’est pas touché.`)) return
+    if (!confirm(t(`Forget “${card.name}”? Its folder is left untouched.`, `Oublier « ${card.name} » ? Son dossier n’est pas touché.`))) return
     await api.forget(card.id)
     await projects.refresh()
   }
 </script>
 
 <div class="head">
-  <h1>Projets</h1>
+  <h1>{t('Projects', 'Projets')}</h1>
   <label>
-    Trier par
+    {t('Sort by', 'Trier par')}
     <select value={sort} onchange={(e) => router.setQuery({ sort: e.currentTarget.value })}>
       {#each SORTS as option (option.value)}
         <option value={option.value}>{option.label}</option>
@@ -37,11 +38,11 @@
 {#if projects.error}
   <p class="error">{projects.error}</p>
 {:else if projects.loading}
-  <p class="muted">Chargement…</p>
+  <p class="muted">{t('Loading…', 'Chargement…')}</p>
 {:else if cards.length === 0}
   <div class="panel empty">
-    <p>Aucun projet suivi pour l’instant.</p>
-    <p class="muted">Dans le dossier d’un projet, lance <code>altium init</code>.</p>
+    <p>{t('No project followed yet.', 'Aucun projet suivi pour l’instant.')}</p>
+    <p class="muted">{t('In a project folder, run', 'Dans le dossier d’un projet, lance')} <code>altium init</code>.</p>
   </div>
 {/if}
 
@@ -67,7 +68,7 @@
         {/if}
         {#if card.session}
           <p class="line session">
-            ● Session active
+            ● {t('Active session', 'Session active')}
             {#if card.session.running}
               — <strong class="mono">{card.session.running.tool}</strong>
               {#if card.session.running.target}<span class="mono target">{card.session.running.target}</span>{/if}
@@ -80,15 +81,15 @@
         <p class="foot muted">
           {#if card.branch}<span class="mono">⎇ {card.branch}</span>{/if}
           {#if card.last_activity}<span>{relative(card.last_activity, clock.now)}</span>{/if}
-          {#if card.read_only}<span title="Format plus récent que ce binaire">lecture seule</span>{/if}
+          {#if card.read_only}<span title={t('Format newer than this binary', 'Format plus récent que ce binaire')}>{t('read only', 'lecture seule')}</span>{/if}
         </p>
         {#if card.error}<p class="error small">{card.error}</p>{/if}
       </a>
     {:else}
       <div class="card panel missing" data-testid="project-card">
         <div class="title"><h2>{card.name}</h2></div>
-        <p class="muted small">Introuvable : <span class="mono">{card.path}</span></p>
-        <button onclick={() => forget(card)}>Oublier</button>
+        <p class="muted small">{t('Not found:', 'Introuvable :')} <span class="mono">{card.path}</span></p>
+        <button onclick={() => forget(card)}>{t('Forget', 'Oublier')}</button>
       </div>
     {/if}
   {/each}

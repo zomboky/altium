@@ -50,16 +50,17 @@ export function typing(target: EventTarget | null): boolean {
   return ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)
 }
 
-export const SHORTCUTS: [string, string][] = [
-  ['n', 'Nouvelle task'],
-  ['p', 'Changer de projet'],
-  ['l', 'Tasks en liste'],
-  ['k', 'Tasks en kanban'],
-  ['h', 'Historique des tasks'],
-  ['/', 'Rechercher'],
-  ['s', 'Synthèse du projet'],
-  ['a', 'Activité'],
-  ['m', 'Mémoire'],
-  ['g', 'Vue d’ensemble'],
-  ['?', 'Cette aide'],
+/** Key, then its action in English and in French. */
+export const SHORTCUTS: [string, string, string][] = [
+  ['n', 'New task', 'Nouvelle task'],
+  ['p', 'Switch project', 'Changer de projet'],
+  ['l', 'Tasks as a list', 'Tasks en liste'],
+  ['k', 'Tasks as a kanban', 'Tasks en kanban'],
+  ['h', 'Task history', 'Historique des tasks'],
+  ['/', 'Search', 'Rechercher'],
+  ['s', 'Project summary', 'Synthèse du projet'],
+  ['a', 'Activity', 'Activité'],
+  ['m', 'Memory', 'Mémoire'],
+  ['g', 'Overview', 'Vue d’ensemble'],
+  ['?', 'This help', 'Cette aide'],
 ]

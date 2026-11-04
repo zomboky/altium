@@ -7,6 +7,7 @@
   import { PRIORITIES, STATUSES, type Task, type TaskList, services } from '../lib/api'
   import { attempt, setPriority, setStatus } from '../lib/actions'
   import { DEADLINE_LABELS, PRIORITY_LABELS, STATUS_LABELS } from '../lib/format'
+  import { t } from '../lib/i18n.svelte'
   import { Resource } from '../lib/resource.svelte'
   import { router } from '../lib/router.svelte'
   import { type TaskFilter, allTags, isFiltered, matches, neighbour, sections, tree } from '../lib/tasks'
@@ -61,25 +62,25 @@
   <input
     id="search"
     type="search"
-    placeholder="Rechercher (/)"
+    placeholder={t('Search (/)', 'Rechercher (/)')}
     value={filter.text}
     oninput={(e) => router.setQuery({ q: e.currentTarget.value })}
-    aria-label="Rechercher une task"
+    aria-label={t('Search tasks', 'Rechercher une task')}
   />
-  <select value={filter.status} onchange={(e) => router.setQuery({ status: e.currentTarget.value })} aria-label="Statut">
-    <option value="">Tous statuts</option>
+  <select value={filter.status} onchange={(e) => router.setQuery({ status: e.currentTarget.value })} aria-label={t('Status', 'Statut')}>
+    <option value="">{t('All statuses', 'Tous statuts')}</option>
     {#each STATUSES as s (s)}<option value={s}>{STATUS_LABELS[s]}</option>{/each}
   </select>
   <select
     value={filter.priority}
     onchange={(e) => router.setQuery({ priority: e.currentTarget.value })}
-    aria-label="Priorité"
+    aria-label={t('Priority', 'Priorité')}
   >
-    <option value="">Toutes priorités</option>
+    <option value="">{t('All priorities', 'Toutes priorités')}</option>
     {#each PRIORITIES as p (p)}<option value={p}>{p}</option>{/each}
   </select>
   <select value={filter.tag} onchange={(e) => router.setQuery({ tag: e.currentTarget.value })} aria-label="Tag">
-    <option value="">Tous tags</option>
+    <option value="">{t('All tags', 'Tous tags')}</option>
     {#each tags as tag (tag)}<option value={tag}>#{tag}</option>{/each}
   </select>
   <select
@@ -87,25 +88,27 @@
     onchange={(e) => router.setQuery({ deadline: e.currentTarget.value })}
     aria-label="Deadline"
   >
-    <option value="">Toutes deadlines</option>
+    <option value="">{t('All deadlines', 'Toutes deadlines')}</option>
     {#each Object.entries(DEADLINE_LABELS) as [value, label] (value)}<option {value}>{label}</option>{/each}
   </select>
   {#if isFiltered(filter)}
     <button class="link" onclick={() => router.setQuery({ q: null, status: null, priority: null, tag: null, deadline: null })}
-      >Effacer les filtres</button
+      >{t('Clear filters', 'Effacer les filtres')}</button
     >
   {/if}
-  <button class="primary new" onclick={() => (ui.creating = true)} title="Nouvelle task (n)">+ Nouvelle task</button>
+  <button class="primary new" onclick={() => (ui.creating = true)} title={t('New task (n)', 'Nouvelle task (n)')}>+ {t('New task', 'Nouvelle task')}</button>
 </div>
 
 {#if list.error}
   <p class="error">{list.error}</p>
 {:else if list.loading}
-  <p class="muted">Chargement…</p>
+  <p class="muted">{t('Loading…', 'Chargement…')}</p>
 {:else if tasks.length === 0}
-  <p class="muted">Aucune task. Appuie sur <kbd>n</kbd> pour en créer une.</p>
+  <p class="muted">
+    {t('No task yet. Press', 'Aucune task. Appuie sur')} <kbd>n</kbd> {t('to create one.', 'pour en créer une.')}
+  </p>
 {:else if shown.length === 0}
-  <p class="muted">Aucune task ne correspond aux filtres.</p>
+  <p class="muted">{t('No task matches the filters.', 'Aucune task ne correspond aux filtres.')}</p>
 {/if}
 
 {#snippet rows(group: Task[], label: string, reorder: boolean)}
@@ -119,7 +122,7 @@
             class="chip {task.priority}"
             value={task.priority}
             onchange={(e) => change(() => setPriority(api, project, task, e.currentTarget.value as Task['priority']))}
-            aria-label="Priorité de {task.id}"
+            aria-label={t(`Priority of ${task.id}`, `Priorité de ${task.id}`)}
           >
             {#each PRIORITIES as p (p)}<option value={p}>{PRIORITY_LABELS[p]}</option>{/each}
           </select>
@@ -131,7 +134,7 @@
               e.currentTarget.value = task.status
               change(() => setStatus(api, project, task, value))
             }}
-            aria-label="Statut de {task.id}"
+            aria-label={t(`Status of ${task.id}`, `Statut de ${task.id}`)}
           >
             {#each STATUSES as s (s)}<option value={s}>{STATUS_LABELS[s]}</option>{/each}
           </select>
@@ -146,7 +149,7 @@
               {project}
               target={task.deliverable}
               available={task.deliverable_available}
-              title={`Livrable de ${task.id}`}
+              title={t(`Deliverable of ${task.id}`, `Livrable de ${task.id}`)}
               compact
             />
           {/if}
@@ -159,15 +162,15 @@
                 class="icon"
                 onclick={() => move(task, -1)}
                 disabled={neighbour(tasks, task, -1) === undefined}
-                title="Monter (même priorité)"
-                aria-label="Monter {task.id}">↑</button
+                title={t('Move up (same priority)', 'Monter (même priorité)')}
+                aria-label={t(`Move ${task.id} up`, `Monter ${task.id}`)}>↑</button
               >
               <button
                 class="icon"
                 onclick={() => move(task, 1)}
                 disabled={neighbour(tasks, task, 1) === undefined}
-                title="Descendre (même priorité)"
-                aria-label="Descendre {task.id}">↓</button
+                title={t('Move down (same priority)', 'Descendre (même priorité)')}
+                aria-label={t(`Move ${task.id} down`, `Descendre ${task.id}`)}>↓</button
               >
             </span>
           {/if}
@@ -177,14 +180,17 @@
   {/if}
 {/snippet}
 
-{@render rows(parts.active, 'En cours et à faire', true)}
-{@render rows(parts.blocked, 'Bloquées', true)}
+{@render rows(parts.active, t('Doing and to do', 'En cours et à faire'), true)}
+{@render rows(parts.blocked, t('Blocked', 'Bloquées'), true)}
 {#if parts.closed.length > 0}
   {#if showClosed || filter.status === 'done' || filter.status === 'cancelled'}
-    {@render rows(parts.closed, 'Terminées et annulées', false)}
+    {@render rows(parts.closed, t('Done and cancelled', 'Terminées et annulées'), false)}
   {:else}
     <button class="link closed" onclick={() => (showClosed = true)}>
-      Afficher les {parts.closed.length} tasks terminées ou annulées
+      {t(
+        `Show the ${parts.closed.length} done or cancelled tasks`,
+        `Afficher les ${parts.closed.length} tasks terminées ou annulées`,
+      )}
     </button>
   {/if}
 {/if}

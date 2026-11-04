@@ -4,6 +4,7 @@
   import { type Activity, type Stats, services } from '../lib/api'
   import { clock } from '../lib/clock.svelte'
   import { duration, relative, shortSession } from '../lib/format'
+  import { t } from '../lib/i18n.svelte'
   import { Resource } from '../lib/resource.svelte'
   import { router } from '../lib/router.svelte'
 
@@ -41,19 +42,19 @@
   <section>
     <h2>Sessions</h2>
     {#if activity.data && activity.data.sessions.length === 0}
-      <p class="muted">Aucune session Claude enregistrée pour ce projet.</p>
+      <p class="muted">{t('No Claude session recorded for this project.', 'Aucune session Claude enregistrée pour ce projet.')}</p>
     {/if}
     <ul class="sessions">
       {#each activity.data?.sessions ?? [] as s (s.id)}
         <li class="panel" class:active={s.active} data-testid="session">
           <div class="line">
             <strong class="mono">{shortSession(s.id)}</strong>
-            {#if s.active}<span class="chip live">● active</span>{:else}<span class="chip">terminée</span>{/if}
+            {#if s.active}<span class="chip live">● {t('active', 'active')}</span>{:else}<span class="chip">{t('ended', 'terminée')}</span>{/if}
             {#if s.model}<span class="muted small">{s.model}</span>{/if}
             <button
               class="link small"
               onclick={() => router.setQuery({ session: session === s.id ? null : s.id })}
-              >{session === s.id ? 'Tous les appels' : 'Ses appels'}</button
+              >{session === s.id ? t('All calls', 'Tous les appels') : t('Its calls', 'Ses appels')}</button
             >
           </div>
           {#if s.running}
@@ -64,23 +65,30 @@
             </p>
           {/if}
           <p class="muted small">
-            Démarrée {relative(s.start, clock.now)} · {s.tool_calls} appel{s.tool_calls > 1 ? 's' : ''}
-            · dernier événement {relative(s.last_event, clock.now)}
+            {t('Started', 'Démarrée')} {relative(s.start, clock.now)} · {s.tool_calls}
+            {t(s.tool_calls > 1 ? 'calls' : 'call', s.tool_calls > 1 ? 'appels' : 'appel')}
+            · {t('last event', 'dernier événement')} {relative(s.last_event, clock.now)}
           </p>
         </li>
       {/each}
     </ul>
 
-    <h2>Statistiques</h2>
+    <h2>{t('Statistics', 'Statistiques')}</h2>
     <div class="filters">
-      <select value={String(days)} onchange={(e) => router.setQuery({ days: e.currentTarget.value })} aria-label="Période">
-        <option value="1">Aujourd’hui</option>
-        <option value="7">7 jours</option>
-        <option value="30">30 jours</option>
-        <option value="90">90 jours</option>
+      <select value={String(days)} onchange={(e) => router.setQuery({ days: e.currentTarget.value })} aria-label={t('Period', 'Période')}>
+        <option value="1">{t('Today', 'Aujourd’hui')}</option>
+        <option value="7">{t('7 days', '7 jours')}</option>
+        <option value="30">{t('30 days', '30 jours')}</option>
+        <option value="90">{t('90 days', '90 jours')}</option>
       </select>
       {#if stats.data}
-        <span class="muted small">{stats.data.calls} appels, {stats.data.fails} échecs</span>
+        {@const { calls, fails } = stats.data}
+        <span class="muted small"
+          >{t(
+            `${calls} call${calls === 1 ? '' : 's'}, ${fails} failure${fails === 1 ? '' : 's'}`,
+            `${calls} appel${calls > 1 ? 's' : ''}, ${fails} échec${fails > 1 ? 's' : ''}`,
+          )}</span
+        >
       {/if}
     </div>
     {#if stats.data}
@@ -97,7 +105,7 @@
         </tbody>
       </table>
       {#if stats.data.files.length > 0}
-        <h3>Fichiers les plus modifiés</h3>
+        <h3>{t('Most edited files', 'Fichiers les plus modifiés')}</h3>
         <ol class="files">
           {#each stats.data.files as [file, n] (file)}<li><span class="mono">{file}</span> <span class="muted">{n}</span></li>{/each}
         </ol>
@@ -106,21 +114,27 @@
   </section>
 
   <section>
-    <h2>Appels d’outils</h2>
+    <h2>{t('Tool calls', 'Appels d’outils')}</h2>
     <div class="filters">
-      <select value={tool} onchange={(e) => router.setQuery({ tool: e.currentTarget.value })} aria-label="Outil">
-        <option value="">Tous les outils</option>
+      <select value={tool} onchange={(e) => router.setQuery({ tool: e.currentTarget.value })} aria-label={t('Tool', 'Outil')}>
+        <option value="">{t('All tools', 'Tous les outils')}</option>
         {#each activity.data?.tools ?? [] as t (t)}<option value={t}>{t}</option>{/each}
       </select>
       {#if session}
         <span class="chip">session {shortSession(session)}</span>
-        <button class="link" onclick={() => router.setQuery({ session: null })}>tous</button>
+        <button class="link" onclick={() => router.setQuery({ session: null })}>{t('all', 'tous')}</button>
       {/if}
     </div>
     {#if activity.error}<p class="error">{activity.error}</p>{/if}
     <table class="calls">
       <thead>
-        <tr><th>Quand</th><th>Outil</th><th>Cible</th><th>Résultat</th><th>Durée</th></tr>
+        <tr>
+          <th>{t('When', 'Quand')}</th>
+          <th>{t('Tool', 'Outil')}</th>
+          <th>{t('Target', 'Cible')}</th>
+          <th>{t('Result', 'Résultat')}</th>
+          <th>{t('Duration', 'Durée')}</th>
+        </tr>
       </thead>
       <tbody>
         {#each activity.data?.calls ?? [] as call, i (call.at + call.tool + i)}
@@ -129,14 +143,14 @@
             <td class="mono">{call.tool}</td>
             <td class="mono target">{call.target ?? ''}</td>
             <td>
-              {#if call.ok === null}<span class="live">en cours</span>
+              {#if call.ok === null}<span class="live">{t('running', 'en cours')}</span>
               {:else if call.ok}<span class="ok">✓</span>
-              {:else}<span class="error">✗ échec</span>{/if}
+              {:else}<span class="error">✗ {t('failed', 'échec')}</span>{/if}
             </td>
             <td class="num nowrap">{call.ms !== null ? duration(call.ms) : ''}</td>
           </tr>
         {:else}
-          <tr><td colspan="5" class="muted">Aucun appel.</td></tr>
+          <tr><td colspan="5" class="muted">{t('No call.', 'Aucun appel.')}</td></tr>
         {/each}
       </tbody>
     </table>

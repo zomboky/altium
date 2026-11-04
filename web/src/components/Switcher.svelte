@@ -2,6 +2,7 @@
   import { onMount } from 'svelte'
 
   import type { ProjectCard } from '../lib/api'
+  import { t } from '../lib/i18n.svelte'
   import { href, router } from '../lib/router.svelte'
 
   let { projects, onclose }: { projects: ProjectCard[]; onclose: () => void } = $props()
@@ -33,15 +34,15 @@
   }
 </script>
 
-<dialog bind:this={dialog} {onclose} aria-label="Changer de projet">
+<dialog bind:this={dialog} {onclose} aria-label={t('Switch project', 'Changer de projet')}>
   <!-- svelte-ignore a11y_autofocus -->
   <input
     autofocus
-    placeholder="Projet…"
+    placeholder={t('Project…', 'Projet…')}
     bind:value={text}
     oninput={() => (selected = 0)}
     {onkeydown}
-    aria-label="Nom du projet"
+    aria-label={t('Project name', 'Nom du projet')}
   />
   <ul role="listbox">
     {#each shown as project, i (project.id)}
@@ -52,7 +53,7 @@
         </button>
       </li>
     {:else}
-      <li class="muted">Aucun projet</li>
+      <li class="muted">{t('No project', 'Aucun projet')}</li>
     {/each}
   </ul>
 </dialog>

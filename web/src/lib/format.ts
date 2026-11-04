@@ -1,50 +1,57 @@
 import type { DeadlineState, NodeKind, Priority, TaskStatus } from './api/types'
+import { i18n, labels, t } from './i18n.svelte'
 
-export const STATUS_LABELS: Record<TaskStatus, string> = {
-  todo: 'À faire',
-  doing: 'En cours',
-  blocked: 'Bloqué',
-  done: 'Fait',
-  cancelled: 'Annulé',
+export const STATUS_LABELS = labels<TaskStatus>({
+  todo: ['To do', 'À faire'],
+  doing: ['Doing', 'En cours'],
+  blocked: ['Blocked', 'Bloqué'],
+  done: ['Done', 'Fait'],
+  cancelled: ['Cancelled', 'Annulé'],
+})
+
+export const PRIORITY_LABELS = labels<Priority>({
+  P0: ['P0 critical', 'P0 critique'],
+  P1: ['P1 high', 'P1 haute'],
+  P2: ['P2 normal', 'P2 normale'],
+  P3: ['P3 low', 'P3 basse'],
+})
+
+export const DEADLINE_LABELS = labels<DeadlineState>({
+  overdue: ['Overdue', 'En retard'],
+  near: ['Soon', 'Proche'],
+  later: ['Later', 'Plus tard'],
+  none: ['No deadline', 'Sans deadline'],
+})
+
+export const KIND_LABELS = labels<NodeKind>({
+  decision: ['Decision', 'Décision'],
+  fact: ['Fact', 'Fait'],
+  convention: ['Convention', 'Convention'],
+  component: ['Component', 'Composant'],
+  gotcha: ['Gotcha', 'Piège'],
+  howto: ['How-to', 'Mode d’emploi'],
+  reference: ['Reference', 'Référence'],
+})
+
+export const LINK_LABELS: Record<string, string> = labels({
+  depends_on: ['depends on', 'dépend de'],
+  implies: ['implies', 'implique'],
+  equivalent_to: ['equivalent to', 'équivaut à'],
+  part_of: ['part of', 'fait partie de'],
+  supersedes: ['supersedes', 'remplace'],
+  contradicts: ['contradicts', 'contredit'],
+  relates_to: ['relates to', 'en lien avec'],
+})
+
+function formats(tag: string) {
+  return {
+    date: new Intl.DateTimeFormat(tag, { day: 'numeric', month: 'short' }),
+    dateYear: new Intl.DateTimeFormat(tag, { day: 'numeric', month: 'short', year: 'numeric' }),
+    time: new Intl.DateTimeFormat(tag, { hour: '2-digit', minute: '2-digit' }),
+  }
 }
 
-export const PRIORITY_LABELS: Record<Priority, string> = {
-  P0: 'P0 critique',
-  P1: 'P1 haute',
-  P2: 'P2 normale',
-  P3: 'P3 basse',
-}
-
-export const DEADLINE_LABELS: Record<DeadlineState, string> = {
-  overdue: 'En retard',
-  near: 'Proche',
-  later: 'Plus tard',
-  none: 'Sans deadline',
-}
-
-export const KIND_LABELS: Record<NodeKind, string> = {
-  decision: 'Décision',
-  fact: 'Fait',
-  convention: 'Convention',
-  component: 'Composant',
-  gotcha: 'Piège',
-  howto: 'Mode d’emploi',
-  reference: 'Référence',
-}
-
-export const LINK_LABELS: Record<string, string> = {
-  depends_on: 'dépend de',
-  implies: 'implique',
-  equivalent_to: 'équivaut à',
-  part_of: 'fait partie de',
-  supersedes: 'remplace',
-  contradicts: 'contredit',
-  relates_to: 'en lien avec',
-}
-
-const DATE = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short' })
-const DATE_YEAR = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })
-const TIME = new Intl.DateTimeFormat('fr-FR', { hour: '2-digit', minute: '2-digit' })
+const FORMATS = { en: formats('en-US'), fr: formats('fr-FR') }
 
 /** A deadline as stored (`2026-11-02` or `2026-11-02T18:00`), in local time. */
 export function parseDeadline(due: string): Date {
@@ -57,23 +64,24 @@ export function parseDeadline(due: string): Date {
 
 export function formatDeadline(due: string, now = new Date()): string {
   const at = parseDeadline(due)
-  const date = at.getFullYear() === now.getFullYear() ? DATE.format(at) : DATE_YEAR.format(at)
-  return due.includes('T') ? `${date} ${TIME.format(at)}` : date
+  const f = FORMATS[i18n.lang]
+  const date = at.getFullYear() === now.getFullYear() ? f.date.format(at) : f.dateYear.format(at)
+  return due.includes('T') ? `${date} ${f.time.format(at)}` : date
 }
 
-/** `il y a 5 min`, `dans 2 j`: coarse relative time. */
+/** `5 min ago`, `in 2 d` (`il y a 5 min`, `dans 2 j`): coarse relative time. */
 export function relative(iso: string | Date, now = new Date()): string {
   const at = typeof iso === 'string' ? new Date(iso) : iso
   const seconds = Math.round((at.getTime() - now.getTime()) / 1000)
   const past = seconds < 0
   const s = Math.abs(seconds)
   let text: string
-  if (s < 45) return past ? 'à l’instant' : 'dans un instant'
+  if (s < 45) return past ? t('just now', 'à l’instant') : t('in a moment', 'dans un instant')
   else if (s < 3600) text = `${Math.round(s / 60)} min`
   else if (s < 86400) text = `${Math.round(s / 3600)} h`
-  else if (s < 86400 * 30) text = `${Math.round(s / 86400)} j`
-  else return DATE_YEAR.format(at)
-  return past ? `il y a ${text}` : `dans ${text}`
+  else if (s < 86400 * 30) text = `${Math.round(s / 86400)} ${t('d', 'j')}`
+  else return FORMATS[i18n.lang].dateYear.format(at)
+  return past ? t(`${text} ago`, `il y a ${text}`) : t(`in ${text}`, `dans ${text}`)
 }
 
 /** `1 min 05 s`, `850 ms`: a duration. */
@@ -89,7 +97,7 @@ export function duration(ms: number): string {
 /** Who made a change: `user` or `claude:<session>`. */
 export function actor(by: string | undefined): string {
   if (!by) return ''
-  if (by === 'user') return 'toi'
+  if (by === 'user') return t('you', 'toi')
   if (by.startsWith('claude')) return 'Claude'
   return by
 }

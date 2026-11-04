@@ -6,6 +6,7 @@
   import { STATUSES, type Task, type TaskList, type TaskStatus, services } from '../lib/api'
   import { attempt, setStatus } from '../lib/actions'
   import { STATUS_LABELS } from '../lib/format'
+  import { t } from '../lib/i18n.svelte'
   import { Resource } from '../lib/resource.svelte'
   import { router } from '../lib/router.svelte'
   import { columns, matches } from '../lib/tasks'
@@ -56,7 +57,13 @@
     } else if (before !== task.id) {
       const target = before ? tasks.find((t) => t.id === before) : null
       if (target && target.priority !== task.priority) {
-        ui.notify('Seules les tasks de même priorité se réordonnent : change sa priorité d’abord.', true)
+        ui.notify(
+          t(
+            'Only tasks of the same priority can be reordered: change its priority first.',
+            'Seules les tasks de même priorité se réordonnent : change sa priorité d’abord.',
+          ),
+          true,
+        )
         return
       }
       // Dropped below the last card: last of its priority.
@@ -75,13 +82,13 @@
   <input
     id="search"
     type="search"
-    placeholder="Rechercher (/)"
+    placeholder={t('Search (/)', 'Rechercher (/)')}
     value={text}
     oninput={(e) => router.setQuery({ q: e.currentTarget.value })}
-    aria-label="Rechercher une task"
+    aria-label={t('Search tasks', 'Rechercher une task')}
   />
-  <span class="muted hint">Glisse une carte pour changer son statut ou son ordre.</span>
-  <button class="primary new" onclick={() => create('todo')} title="Nouvelle task (n)">+ Nouvelle task</button>
+  <span class="muted hint">{t('Drag a card to change its status or order.', 'Glisse une carte pour changer son statut ou son ordre.')}</span>
+  <button class="primary new" onclick={() => create('todo')} title={t('New task (n)', 'Nouvelle task (n)')}>+ {t('New task', 'Nouvelle task')}</button>
 </div>
 
 {#if list.error}
@@ -101,7 +108,7 @@
       <header>
         <h2>{STATUS_LABELS[status]} <span class="muted">{board[status].length}</span></h2>
         {#if status !== 'done' && status !== 'cancelled'}
-          <button class="icon" onclick={() => create(status)} aria-label="Ajouter dans {STATUS_LABELS[status]}">+</button>
+          <button class="icon" onclick={() => create(status)} aria-label={t(`Add to ${STATUS_LABELS[status]}`, `Ajouter dans ${STATUS_LABELS[status]}`)}>+</button>
         {/if}
       </header>
       <ul>

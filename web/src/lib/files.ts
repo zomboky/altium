@@ -1,6 +1,8 @@
 // Project files the dashboard can show: task deliverables and the files
 // memory links point to. The server serves them under /api/projects/{id}/files/.
 
+import { labels } from './i18n.svelte'
+
 export type FileKind = 'pdf' | 'video' | 'audio' | 'image' | 'page' | 'text' | 'other' | 'url'
 
 const EXTENSIONS: Record<string, FileKind> = {
@@ -47,16 +49,16 @@ export const FILE_ICONS: Record<FileKind, string> = {
   url: '🔗',
 }
 
-export const FILE_LABELS: Record<FileKind, string> = {
-  pdf: 'PDF',
-  video: 'Vidéo',
-  audio: 'Audio',
-  image: 'Image',
-  page: 'Page interactive',
-  text: 'Texte',
-  other: 'Fichier',
-  url: 'Lien web',
-}
+export const FILE_LABELS = labels<FileKind>({
+  pdf: ['PDF', 'PDF'],
+  video: ['Video', 'Vidéo'],
+  audio: ['Audio', 'Audio'],
+  image: ['Image', 'Image'],
+  page: ['Interactive page', 'Page interactive'],
+  text: ['Text', 'Texte'],
+  other: ['File', 'Fichier'],
+  url: ['Web link', 'Lien web'],
+})
 
 export function isUrl(target: string): boolean {
   return /^https?:\/\//.test(target)

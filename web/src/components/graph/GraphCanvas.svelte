@@ -22,6 +22,7 @@
     matchesText,
     neighbourhood,
   } from '../../lib/memoryGraph'
+  import { t } from '../../lib/i18n.svelte'
   import LinkEdge from './LinkEdge.svelte'
   import MemoryCard from './MemoryCard.svelte'
   import type { GraphView } from './view.svelte'
@@ -154,7 +155,7 @@
   <Background variant={BackgroundVariant.Dots} gap={22} />
   <Controls position="bottom-left" showLock={false} fitViewOptions={FIT}>
     {#snippet after()}
-      <ControlButton onclick={relayout} title="Refaire le placement automatique">⟳</ControlButton>
+      <ControlButton onclick={relayout} title={t('Redo the automatic layout', 'Refaire le placement automatique')}>⟳</ControlButton>
     {/snippet}
   </Controls>
   <MiniMap position="bottom-right" pannable zoomable nodeColor={minimapColor} nodeStrokeWidth={0} />

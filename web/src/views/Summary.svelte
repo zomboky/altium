@@ -6,6 +6,7 @@
   import { type GitInfo, type ProjectDetail, services } from '../lib/api'
   import { clock } from '../lib/clock.svelte'
   import { STATUS_LABELS, actor, relative } from '../lib/format'
+  import { t } from '../lib/i18n.svelte'
   import { Resource } from '../lib/resource.svelte'
   import { href, link } from '../lib/router.svelte'
 
@@ -73,49 +74,53 @@
       </div>
       <p class="muted mono path">{d.path}</p>
 
-      <h2>Résumé</h2>
+      <h2>{t('Summary', 'Résumé')}</h2>
       {#if editing}
-        <textarea rows="5" bind:value={draft} maxlength="600" aria-label="Résumé du projet"></textarea>
+        <textarea rows="5" bind:value={draft} maxlength="600" aria-label={t('Project summary', 'Résumé du projet')}></textarea>
         <div class="actions">
           <span class="muted small">{draft.length}/600</span>
-          <button onclick={() => (editing = false)}>Annuler</button>
-          <button class="primary" disabled={saving} onclick={() => save({ summary: draft })}>Enregistrer</button>
+          <button onclick={() => (editing = false)}>{t('Cancel', 'Annuler')}</button>
+          <button class="primary" disabled={saving} onclick={() => save({ summary: draft })}>{t('Save', 'Enregistrer')}</button>
         </div>
       {:else}
-        <p class="summary">{status?.summary || 'Pas encore de résumé.'}</p>
+        <p class="summary">{status?.summary || t('No summary yet.', 'Pas encore de résumé.')}</p>
         <div class="actions">
           {#if status?.updated_at}
             <span class="muted small">
-              Mis à jour par {actor(status.updated_by)} {relative(status.updated_at, clock.now)}
+              {t('Updated by', 'Mis à jour par')} {actor(status.updated_by)} {relative(status.updated_at, clock.now)}
             </span>
           {/if}
-          {#if !d.read_only}<button onclick={edit}>Modifier</button>{/if}
+          {#if !d.read_only}<button onclick={edit}>{t('Edit', 'Modifier')}</button>{/if}
         </div>
       {/if}
       {#if error}<p class="error">{error}</p>{/if}
 
       {#if d.progress}
-        <h2>Progression</h2>
+        <h2>{t('Progress', 'Progression')}</h2>
         {#if d.progress.total > 0}
           <ProgressBar progress={d.progress} />
           <p class="counts">
             {#each Object.entries(d.progress.by_status) as [s, n] (s)}
-              <span class="chip">{STATUS_LABELS[s as keyof typeof STATUS_LABELS] ?? s} : {n}</span>
+              <span class="chip">{STATUS_LABELS[s as keyof typeof STATUS_LABELS] ?? s}{t(':', ' :')} {n}</span>
             {/each}
           </p>
         {:else}
-          <p class="muted">Aucune task. <a href={href('tasks', project)} onclick={link}>En créer une</a></p>
+          <p class="muted">
+            {t('No task yet.', 'Aucune task.')}
+            <a href={href('tasks', project)} onclick={link}>{t('Create one', 'En créer une')}</a>
+          </p>
         {/if}
       {/if}
       {#if d.health}
-        <h2>Santé</h2>
+        <h2>{t('Health', 'Santé')}</h2>
         <HealthBadges health={d.health} progress={d.progress} />
         {#if d.progress && d.progress.near > 0}
-          <span class="chip near">{d.progress.near} deadline{d.progress.near > 1 ? 's' : ''} proche{d.progress.near > 1 ? 's' : ''}</span>
+          <span class="chip near">{d.progress.near}
+            {d.progress.near > 1 ? t('deadlines soon', 'deadlines proches') : t('deadline soon', 'deadline proche')}</span>
         {/if}
       {/if}
       {#if d.errors.length > 0}
-        <h2>Problèmes</h2>
+        <h2>{t('Problems', 'Problèmes')}</h2>
         <ul class="error">
           {#each d.errors as e (e)}<li>{e}</li>{/each}
         </ul>
@@ -126,9 +131,12 @@
       <h2>Git</h2>
       {#if git.data}
         {@const g = git.data}
-        <p><span class="mono">⎇ {g.branch ?? '(HEAD détachée)'}</span></p>
+        <p><span class="mono">⎇ {g.branch ?? t('(detached HEAD)', '(HEAD détachée)')}</span></p>
         <p class="small">
-          {g.modified} modifié{g.modified > 1 ? 's' : ''}, {g.untracked} non suivi{g.untracked > 1 ? 's' : ''}
+          {t(
+            `${g.modified} modified, ${g.untracked} untracked`,
+            `${g.modified} modifié${g.modified > 1 ? 's' : ''}, ${g.untracked} non suivi${g.untracked > 1 ? 's' : ''}`,
+          )}
           {#if g.ahead !== null}· ↑{g.ahead} ↓{g.behind}{/if}
         </p>
         <ul class="commits">
@@ -143,12 +151,12 @@
       {:else if git.loading}
         <p class="muted">…</p>
       {:else}
-        <p class="muted">Pas un dépôt git.</p>
+        <p class="muted">{t('Not a git repository.', 'Pas un dépôt git.')}</p>
       {/if}
     </aside>
   </div>
 {:else}
-  <p class="muted">Chargement…</p>
+  <p class="muted">{t('Loading…', 'Chargement…')}</p>
 {/if}
 
 <style>

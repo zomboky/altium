@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/sve
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import App from './App.svelte'
+import { setLang } from './lib/i18n.svelte'
 import { router } from './lib/router.svelte'
 import { ui } from './lib/ui.svelte'
 import { FakeApi, card, quietLive, task } from './test/fake'
@@ -21,6 +22,8 @@ beforeAll(() => {
 })
 
 beforeEach(() => {
+  // The tests read the French labels; jsdom's browser speaks English.
+  setLang('fr')
   ui.creating = false
   router.go('/', true)
 })
@@ -63,6 +66,20 @@ describe('overview', () => {
     await fireEvent.click(within(missing).getByRole('button', { name: 'Oublier' }))
     await waitFor(() => expect(screen.getAllByTestId('project-card')).toHaveLength(3))
     expect(api.forgotten).toEqual(['d'])
+  })
+})
+
+describe('language', () => {
+  it('switches the labels to English from the header', async () => {
+    const api = new FakeApi()
+    api.cards = [card('a')]
+    start(api, '/projects/a/tasks')
+    expect(await screen.findByRole('link', { name: 'Liste' })).toBeTruthy()
+    await fireEvent.change(screen.getByRole('combobox', { name: 'Langue' }), { target: { value: 'en' } })
+    expect(await screen.findByRole('link', { name: 'List' })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /New task/ })).toBeTruthy()
+    expect(document.documentElement.lang).toBe('en')
+    expect(localStorage.getItem('altium.lang')).toBe('en')
   })
 })
 

@@ -2,6 +2,7 @@
 // may need: the blocking reason, closing a parent with open subtasks.
 
 import { type Api, ApiError, type Priority, type Task, type TaskPatch, type TaskStatus } from './api'
+import { t } from './i18n.svelte'
 import { ui } from './ui.svelte'
 
 /** Sends `patch`; asks before closing a task whose subtasks are still open. */
@@ -12,7 +13,11 @@ export async function send(api: Api, project: string, id: string, patch: TaskPat
   } catch (e) {
     const open = e instanceof ApiError ? e.openSubtasks : null
     if (!open) throw e
-    if (!confirm(`${id} a des sous-tâches encore ouvertes (${open.join(', ')}). La clore quand même ?`)) return false
+    const question = t(
+      `${id} still has open subtasks (${open.join(', ')}). Close it anyway?`,
+      `${id} a des sous-tâches encore ouvertes (${open.join(', ')}). La clore quand même ?`,
+    )
+    if (!confirm(question)) return false
     await api.updateTask(project, id, { ...patch, force: true })
     return true
   }
@@ -41,7 +46,14 @@ export async function attempt(action: () => Promise<unknown>): Promise<boolean> 
     return true
   } catch (e) {
     if (e instanceof ApiError && e.conflict) {
-      ui.notify(`${e.conflict.task.id} vient d’être modifiée ailleurs : rien n’a été changé.`, true)
+      const id = e.conflict.task.id
+      ui.notify(
+        t(
+          `${id} was just changed elsewhere: nothing was changed.`,
+          `${id} vient d’être modifiée ailleurs : rien n’a été changé.`,
+        ),
+        true,
+      )
     } else {
       ui.notify(e instanceof Error ? e.message : String(e), true)
     }

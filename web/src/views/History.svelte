@@ -5,6 +5,7 @@
   import TaskForm from '../components/TaskForm.svelte'
   import { STATUSES, type Task, type TaskList, services } from '../lib/api'
   import { STATUS_LABELS, relative } from '../lib/format'
+  import { locale, t } from '../lib/i18n.svelte'
   import { Resource } from '../lib/resource.svelte'
   import { router } from '../lib/router.svelte'
   import { HISTORY_SIZE, history, lastActivity } from '../lib/tasks'
@@ -29,12 +30,12 @@
 
   let editing = $state<Task | null>(null)
 
-  const DATE = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'short', timeStyle: 'short' })
+  const DATE = $derived(new Intl.DateTimeFormat(locale(), { dateStyle: 'short', timeStyle: 'short' }))
 </script>
 
 <div class="filters" role="search">
-  <select value={status} onchange={(e) => router.setQuery({ status: e.currentTarget.value })} aria-label="Statut">
-    <option value="">Tous statuts</option>
+  <select value={status} onchange={(e) => router.setQuery({ status: e.currentTarget.value })} aria-label={t('Status', 'Statut')}>
+    <option value="">{t('All statuses', 'Tous statuts')}</option>
     {#each STATUSES as s (s)}<option value={s}>{STATUS_LABELS[s]}</option>{/each}
   </select>
   <label class="check">
@@ -43,30 +44,32 @@
       checked={withDeliverable}
       onchange={(e) => router.setQuery({ deliverable: e.currentTarget.checked ? '1' : null })}
     />
-    Avec livrable <span class="muted">({delivered})</span>
+    {t('With a deliverable', 'Avec livrable')} <span class="muted">({delivered})</span>
   </label>
   <span class="muted count">
-    {tasks.length > HISTORY_SIZE ? `${HISTORY_SIZE} dernières tasks sur ${tasks.length}` : `${tasks.length} tasks`}
+    {tasks.length > HISTORY_SIZE
+      ? t(`Last ${HISTORY_SIZE} tasks of ${tasks.length}`, `${HISTORY_SIZE} dernières tasks sur ${tasks.length}`)
+      : `${tasks.length} tasks`}
   </span>
 </div>
 
 {#if list.error}
   <p class="error">{list.error}</p>
 {:else if list.loading}
-  <p class="muted">Chargement…</p>
+  <p class="muted">{t('Loading…', 'Chargement…')}</p>
 {:else if tasks.length === 0}
-  <p class="muted">Aucune task pour l’instant.</p>
+  <p class="muted">{t('No task yet.', 'Aucune task pour l’instant.')}</p>
 {:else if shown.length === 0}
-  <p class="muted">Aucune task ne correspond aux filtres.</p>
+  <p class="muted">{t('No task matches the filters.', 'Aucune task ne correspond aux filtres.')}</p>
 {:else}
   <table data-testid="history">
     <thead>
       <tr>
         <th>Task</th>
-        <th>Statut</th>
-        <th>Créée</th>
-        <th>Dernière activité</th>
-        <th>Livrable</th>
+        <th>{t('Status', 'Statut')}</th>
+        <th>{t('Created', 'Créée')}</th>
+        <th>{t('Last activity', 'Dernière activité')}</th>
+        <th>{t('Deliverable', 'Livrable')}</th>
       </tr>
     </thead>
     <tbody>
@@ -79,7 +82,7 @@
           <td><span class="status {task.status}">{STATUS_LABELS[task.status]}</span></td>
           <td class="muted" title={DATE.format(new Date(task.created_at))}>{relative(task.created_at)}</td>
           <td class="muted" title={DATE.format(new Date(lastActivity(task)))}>
-            {task.done_at ? (task.status === 'done' ? 'terminée ' : 'close ') : ''}{relative(lastActivity(task))}
+            {task.done_at ? (task.status === 'done' ? t('done ', 'terminée ') : t('closed ', 'close ')) : ''}{relative(lastActivity(task))}
           </td>
           <td>
             {#if task.deliverable}
@@ -87,7 +90,7 @@
                 {project}
                 target={task.deliverable}
                 available={task.deliverable_available}
-                title={`Livrable de ${task.id}`}
+                title={t(`Deliverable of ${task.id}`, `Livrable de ${task.id}`)}
               />
             {/if}
           </td>

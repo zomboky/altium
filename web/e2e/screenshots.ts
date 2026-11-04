@@ -30,7 +30,7 @@ try {
   const project = `${BASE}/projects/${projects[0].id}`
 
   const browser = await chromium.launch({ channel: process.platform === 'win32' ? 'msedge' : undefined })
-  const page = await browser.newPage({ viewport: { width: 1280, height: 760 }, colorScheme: 'light' })
+  const page = await browser.newPage({ viewport: { width: 1280, height: 760 }, colorScheme: 'light', locale: 'en-US' })
 
   await page.goto(BASE)
   await page.getByTestId('project-card').first().waitFor()
@@ -38,10 +38,10 @@ try {
 
   await page.goto(`${project}/tasks`)
   await page.getByTestId('task-row').first().waitFor()
-  await page.getByRole('button', { name: /Afficher les \d+ tasks terminées/ }).click()
+  await page.getByRole('button', { name: /Show the \d+ done or cancelled tasks/ }).click()
   await shot(page, 'tasks', 620)
 
-  await page.getByRole('button', { name: 'Simuler la charge du serveur' }).click()
+  await page.getByRole('button', { name: 'Simulate the server load' }).click()
   await page.getByTestId('show-deliverable').click()
   await page.frameLocator('[data-testid=file-viewer] iframe').getByRole('heading').waitFor()
   await shot(page, 'deliverable')
@@ -56,7 +56,7 @@ try {
   await page.goto(`${project}/memory?view=graph`)
   await page.getByTestId('graph-card').first().waitFor()
   await page.waitForTimeout(800)
-  await page.getByTestId('graph-card').filter({ hasText: 'Serveur axum' }).hover()
+  await page.getByTestId('graph-card').filter({ hasText: 'axum server' }).hover()
   await shot(page, 'memory-graph')
 
   await page.goto(`${project}/activity`)

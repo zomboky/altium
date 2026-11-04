@@ -2,6 +2,7 @@
   import { onMount } from 'svelte'
 
   import { FILE_LABELS, fileHref, fileKind, fileName } from '../lib/files'
+  import { t } from '../lib/i18n.svelte'
 
   let {
     project,
@@ -29,8 +30,8 @@
       <h2 id="viewer-title">{title ?? fileName(target)}</h2>
       <p class="muted mono">{FILE_LABELS[kind]} · {target}</p>
     </div>
-    <a class="button" {href} target="_blank" rel="noopener noreferrer">Ouvrir dans un onglet ↗</a>
-    <button onclick={() => dialog.close()}>Fermer</button>
+    <a class="button" {href} target="_blank" rel="noopener noreferrer">{t('Open in a tab ↗', 'Ouvrir dans un onglet ↗')}</a>
+    <button onclick={() => dialog.close()}>{t('Close', 'Fermer')}</button>
   </header>
   <div class="frame {kind}">
     {#if kind === 'pdf' || kind === 'text'}
@@ -50,7 +51,12 @@
     {:else if kind === 'image'}
       <img src={href} alt={title ?? fileName(target)} />
     {:else}
-      <p class="muted">Pas d’aperçu pour ce type de fichier : ouvre-le dans un onglet pour le télécharger.</p>
+      <p class="muted">
+        {t(
+          'No preview for this kind of file: open it in a tab to download it.',
+          'Pas d’aperçu pour ce type de fichier : ouvre-le dans un onglet pour le télécharger.',
+        )}
+      </p>
     {/if}
   </div>
 </dialog>
