@@ -1,301 +1,225 @@
 # Altium
 
-Altium est un tableau de bord local pour suivre l'état de tes projets quand tu travailles avec [Claude Code](https://claude.com/claude-code). Claude tient à jour une mémoire compacte du projet dans un dossier `.altium/` : état, tasks, mémoire en graphe et activité. Un dashboard web local te permet de suivre et de piloter plusieurs projets.
+**A local dashboard for the projects you build with [Claude Code](https://claude.com/claude-code).**
 
-> **État : V1.** CLI, intégration Claude Code (hooks, serveur MCP, contexte injecté), dashboard web temps réel et notifications de deadline. Testé sous Windows 11 ; la validation sur Omarchy reste à faire ([`docs/validation.md`](docs/validation.md)). Le plan et les specs sont dans [`openspec/changes/add-altium-mvp/`](openspec/changes/add-altium-mvp/).
+Claude keeps each project's state in a small `.altium/` folder: a status summary, tasks, a linked memory graph and the activity of its sessions. Altium feeds that context back to every new Claude session, and a live web dashboard on your machine lets you follow and steer all your projects at once.
 
-Altium fonctionne sous Linux, sa cible principale (en particulier [Omarchy](https://omarchy.org)), et sous Windows 10 et 11. Les commandes sont les mêmes sur les deux systèmes. Ce qui change sous Windows est regroupé dans [Altium sous Windows](#altium-sous-windows).
+![Overview of the tracked projects](docs/images/overview.png)
 
-## Installation
+- **Claude does the bookkeeping.** Hooks and an MCP server let Claude create and update tasks, write the project summary and store durable knowledge as linked memory notes, each change attributed to its session.
+- **Every session starts informed.** A compact summary of the project (phase, next tasks, deadlines, memory index) is injected at session start, within a token budget.
+- **One dashboard for everything.** Task list, kanban, history, live Claude activity and the memory graph, updated in real time whether a change comes from Claude, another tab or a hand edit of the files.
+- **Local only.** Plain text files you can commit, a server bound to `127.0.0.1`, no account, no cloud.
+- **Keeps itself up to date.** `altium update` rebuilds the latest version, and the first command of the day checks for one in the background.
+
+> **Status: V1.** Tested on Windows 11; validation on Linux ([Omarchy](https://omarchy.org)) is in progress, see [`docs/validation.md`](docs/validation.md). The command line and the dashboard are in French; the files Altium writes and the instructions Claude receives are in English, and memory notes are written in the language you choose.
+
+## Contents
+
+- [Install](#install)
+- [Getting started](#getting-started)
+- [The dashboard](#the-dashboard)
+- [Commands](#commands)
+- [Updating](#updating)
+- [Configuration](#configuration)
+- [The `.altium/` folder](#the-altium-folder)
+- [Windows notes](#windows-notes)
+- [Development](#development)
+
+## Install
+
+Altium runs on Linux, its main target, and on Windows 10 and 11, with the same commands. It is built from source.
 
 ### Linux
 
-Prérequis : [Rust](https://rustup.rs) 1.89 ou plus récent, Node.js 20 ou plus récent avec npm, `make` et `git`.
+Requirements: [Rust](https://rustup.rs) 1.89 or newer, Node.js 20 or newer with npm, `make` and `git`.
 
 ```bash
-git clone git@github.com:zomboky/altium.git
+git clone https://github.com/zomboky/altium.git
 cd altium
 make build
 install -Dm755 target/release/altium ~/.local/bin/altium
-```
-
-`make build` compile le front web puis produit un binaire unique, `target/release/altium`. Vérifie que `~/.local/bin` est dans ton `PATH` :
-
-```bash
 altium --version
 ```
 
 ### Windows
 
-Prérequis :
+Requirements:
 
-- [Rust](https://rustup.rs) 1.89 ou plus récent, avec la toolchain MSVC que `rustup-init.exe` installe par défaut. Elle a besoin des [Build Tools de Visual Studio](https://visualstudio.microsoft.com/fr/visual-cpp-build-tools/) avec la charge de travail « Développement Desktop en C++ ». `rustup-init.exe` propose de les installer s'ils manquent.
-- [Node.js](https://nodejs.org) 20 ou plus récent, avec npm.
+- [Rust](https://rustup.rs) 1.89 or newer with the default MSVC toolchain, which needs the [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with the "Desktop development with C++" workload (`rustup-init.exe` offers to install them).
+- [Node.js](https://nodejs.org) 20 or newer, with npm.
 - [Git for Windows](https://git-scm.com/download/win).
 
-`make` n'est pas nécessaire : le script `make.ps1` reprend les cibles du `Makefile`. Dans PowerShell :
+`make.ps1` mirrors the `Makefile` targets and runs with the Windows PowerShell 5.1 that ships with Windows:
 
 ```powershell
-git clone git@github.com:zomboky/altium.git
+git clone https://github.com/zomboky/altium.git
 cd altium
 .\make.ps1 build
 New-Item -ItemType Directory -Force "$HOME\.local\bin" | Out-Null
 Copy-Item target\release\altium.exe "$HOME\.local\bin\"
-```
-
-`.\make.ps1 build` fait la même chose que `make build` et produit un binaire unique, `target\release\altium.exe`. Le PowerShell livré avec Windows (5.1) suffit.
-
-Si PowerShell refuse de lancer le script parce que « l'exécution de scripts est désactivée sur ce système », autorise les scripts locaux pour ton compte :
-
-```powershell
-Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
-```
-
-Pour ne rien changer à ta configuration, lance plutôt `powershell -ExecutionPolicy Bypass -File .\make.ps1 build`.
-
-Le dossier `%USERPROFILE%\.local\bin` est déjà dans ton `PATH` si tu as installé Claude Code avec son installateur natif. Sinon, ajoute-le : dans le menu Démarrer, ouvre « Modifier les variables d'environnement pour votre compte », sélectionne la variable `Path`, clique sur « Modifier » puis sur « Nouveau ». Ouvre ensuite un nouveau terminal et vérifie :
-
-```powershell
 altium --version
 ```
 
-## Mise en route
+If PowerShell refuses to run scripts, allow local scripts for your account with `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`, or run `powershell -ExecutionPolicy Bypass -File .\make.ps1 build`. `%USERPROFILE%\.local\bin` is already on your `PATH` if you installed Claude Code with its native installer; otherwise add it from "Edit environment variables for your account".
 
-Trois commandes, une seule fois :
+The build produces a single self-contained binary with the web front embedded.
 
-```bash
-altium setup              # branche Altium dans Claude Code (hooks + serveur MCP)
-altium service install    # démarre le dashboard avec ta session, et maintenant
-cd ~/projects/mon-api && altium init   # suit un projet
-```
+## Getting started
 
-Redémarre ensuite tes sessions Claude Code. Dans un projet suivi, chaque session reçoit au démarrage un résumé compact du projet (phase, tasks en cours, mémoire), et Claude met à jour tasks, statut et mémoire avec les outils MCP d'Altium. Le dashboard est sur http://127.0.0.1:7420.
-
-`altium doctor` vérifie que tout est en place : hooks, serveur MCP, binaire, dashboard et projet courant.
-
-## Utilisation
-
-### Brancher Altium dans Claude Code
+Three commands, once:
 
 ```bash
-altium setup
+altium setup                              # plug Altium into Claude Code (hooks + MCP server)
+altium service install                    # start the dashboard with your session, and now
+cd ~/projects/my-api && altium init       # track a project
 ```
 
-La commande ajoute des hooks au niveau utilisateur (`~/.claude/settings.json`, ou le dossier de `CLAUDE_CONFIG_DIR`) et enregistre le serveur MCP `altium` avec `claude mcp add --scope user`. Elle ne touche pas aux autres hooks ni aux autres serveurs MCP, sauvegarde `settings.json` avant de l'écrire, et peut être relancée sans risque, par exemple après avoir déplacé le binaire. Redémarre ensuite tes sessions Claude Code. Hors d'un projet suivi, les hooks ne font rien.
+Restart your Claude Code sessions. In a tracked project, each session now starts with the project summary, and Claude keeps tasks, status and memory up to date through the `mcp__altium__*` tools. The dashboard is at http://127.0.0.1:7420.
 
-- `altium setup --uninstall` retire exactement ce qu'Altium a ajouté.
-- Les hooks ne contactent jamais le dashboard : ils ajoutent une ligne à `.altium/runtime/events.jsonl` et rendent la main en quelques millisecondes ([`docs/perf.md`](docs/perf.md)).
+For a project that already has a history, `altium survey` opens a Claude Code session that reads the code and your past conversations in that folder, fills in the summary and the memory, then proposes tasks one at a time for you to accept or skip.
 
-Ce que Claude peut faire avec le serveur MCP (outils `mcp__altium__*`) : lire et modifier le statut, lister, créer et modifier des tasks (jamais les supprimer : il les passe à `cancelled`), lire, chercher et écrire la mémoire du projet. Chaque modification est attribuée à sa session. Détails : [`docs/mcp.md`](docs/mcp.md).
+`altium doctor` checks that everything is in place: hooks, MCP server, binary, dashboard and current project.
 
-### Suivre un projet
+## The dashboard
 
-Place-toi dans le dossier du projet et lance :
+Every page has a stable URL you can bookmark, and everything updates live. Keyboard shortcuts: `n` new task, `p` switch project, `l` / `k` / `h` list / kanban / history, `s` summary, `a` activity, `m` memory, `/` search, `g` overview, `?` help.
 
-```bash
-altium init
-```
+### Tasks
 
-```
-Projet « mon-api » initialisé dans ~/projects/mon-api/.altium
-  id         01M61HD2QV8EDBVVCC5S4W5GD0
-  dashboard  http://127.0.0.1:7420/projects/01M61HD2QV8EDBVVCC5S4W5GD0
-```
+Tasks are listed by priority with their subtasks. Filter by status, priority, tag, deadline or text; change priority and status inline; reorder tasks of the same priority. If Claude edits a task while you are editing it, the form tells you instead of overwriting either change.
 
-La commande :
-- crée `.altium/` ;
-- référence le projet dans le registre, `~/.config/altium/projects.toml` sous Linux et `%APPDATA%\altium\projects.toml` sous Windows ;
-- nomme le projet d'après son dossier. L'option `--name` permet d'en choisir un autre :
+![Task list with subtasks, deadlines and a blocked task](docs/images/tasks.png)
 
-```bash
-altium init --name "Mon API"
-```
+The kanban has one column per status. Dragging a card changes its status or its order, and dropping it on "Bloqué" asks for the reason.
 
-`altium init` ne modifie jamais un fichier existant de `.altium/`. Relancée dans un projet déjà initialisé, elle vérifie qu'il est bien référencé et crée seulement les fichiers qui manqueraient. Si `project.toml` a disparu, elle reprend l'identifiant et le nom que le registre connaît pour ce dossier. Si tu as déplacé le dossier du projet, elle met son chemin à jour dans le registre.
+![Kanban board](docs/images/kanban.png)
 
-`.altium/` est fait pour être versionné avec le projet, sauf `.altium/runtime/`. Si le `.gitignore` du projet exclut tout puis liste des exceptions (`*` puis `!/src/**`), `altium init` ajoute à la fin les exceptions `!/.altium/` et `!/.altium/**`, et te le dit. Si ton `.gitignore` nomme `.altium` lui-même, elle le laisse tel quel.
+### Deliverables and history
 
-Dans un sous-dossier d'un projet existant, la commande refuse et t'indique le projet parent. Ajoute `--force` pour créer quand même un projet séparé.
+A task can name its **deliverable**: a file of the project (a report, a figure, an export, a video, an HTML page) or a URL. Claude sets it when a task produces something. As soon as the file exists, the task form shows « Afficher le livrable », which opens it in a viewer: PDFs, images, videos, sounds and text inline, and interactive HTML pages running sandboxed, with no access to the dashboard.
 
-### Faire l'état des lieux d'un projet existant
+![An interactive HTML deliverable in the viewer](docs/images/deliverable.png)
 
-Dans un dossier qui contient déjà des fichiers, `altium init` propose de lancer un état des lieux. Tu peux aussi le lancer plus tard :
+The **Historique** tab lists the last 100 tasks, most recent first, with a link to each deliverable.
 
-```bash
-altium survey
-```
+![History of the last tasks with their deliverables](docs/images/history.png)
 
-La commande ouvre une session Claude Code interactive qui lit le projet (en respectant le `.gitignore`), un résumé de tes anciennes conversations Claude Code dans ce dossier et la mémoire automatique de Claude. Claude remplit ensuite le résumé, la phase et la mémoire d'Altium, puis te propose des tasks **une par une** : « À faire », « À explorer » (tag `explore`) ou « Ignorer ». Rien n'est créé sans ton accord. Relancée plus tard, elle ne relit que les conversations nouvelles.
+### Memory graph
 
-### Le dashboard
+Claude stores durable knowledge as short memory notes (decisions, facts, conventions, components, gotchas, how-tos, references) linked to each other. The memory page shows them as a list with full text, or as a graph laid out automatically (vertical or horizontal hierarchy, or organic). Hovering a note highlights its neighbours. Cards show a thumbnail of the first linked image, such as a chart made with Python, and chips for linked PDFs, videos, HTML pages and tasks, which open in the viewer.
 
-```bash
-altium serve              # au premier plan, Ctrl+C pour l'arrêter
-altium open               # ouvre le projet courant (ou la vue d'ensemble) dans le navigateur
-```
+![Memory graph with linked notes and attachments](docs/images/memory-graph.png)
 
-Le dashboard écoute seulement sur `127.0.0.1` : il n'est jamais joignable depuis une autre machine, et il refuse les requêtes venues d'autres sites. `altium open` le démarre en arrière-plan s'il ne tourne pas. Si le port 7420 est pris, `altium serve` le dit et propose `--port` ; pour changer de port durablement, écris `port = 7421` dans `config.toml` (voir [Configuration](#configuration)).
+### Activity
 
-Pour qu'il démarre avec ta session :
+Claude sessions, the tool running right now with its timer, a filterable feed of tool calls and statistics per period.
 
-```bash
-altium service install     # Linux : unit systemd user ; Windows : clé Run du compte
-altium service uninstall   # retire le démarrage automatique et arrête le dashboard
-```
-
-Les pages ont toutes une URL stable, à mettre en favori :
-
-| Page | Contenu |
-|---|---|
-| Vue d'ensemble | une carte par projet : phase, santé, progression, prochaine deadline, session Claude active et outil en cours, branche git, dernière activité. Tri par activité, nom ou urgence. Un projet introuvable est grisé avec « Oublier ». |
-| Synthèse | résumé et phase modifiables, progression, santé, état git et derniers commits |
-| Liste | tasks dans l'ordre de priorité, avec leurs sous-tâches ; filtres par statut, priorité, tag, deadline et texte ; priorité et statut modifiables sur la ligne ; flèches pour réordonner les tasks de même priorité |
-| Kanban | une colonne par statut ; glisser une carte change son statut ou son ordre ; « Bloqué » demande la raison |
-| Historique | les 100 dernières tasks, de la plus récente à la plus ancienne, avec leur livrable ; filtres par statut et « avec livrable » |
-| Activité | sessions Claude, outil en cours avec son chrono, flux des appels d'outils filtrable, statistiques par période |
-| Mémoire | en liste : nœuds filtrables par type, tag et texte ; liens cliquables, liens cassés, contradictions, épinglage. En graphe : une carte par nœud placée automatiquement (hiérarchie verticale ou horizontale, organique), voisins mis en évidence au survol, miniature des images liées et pièces jointes (PDF, vidéo, page HTML interactive, task) qui s'ouvrent dans une visionneuse |
-
-Une task peut avoir un livrable : un fichier du projet ou une URL. Quand le fichier existe, « Afficher le livrable » apparaît dans le formulaire de la task, et une icône sur sa ligne. PDF, images, vidéos, sons et textes s'ouvrent dans la visionneuse ; une page HTML y tourne isolée, sans accès au dashboard. Le serveur ne sert que les fichiers du projet hors dossiers cachés (donc jamais `.altium/` ni `.git/`).
-
-Tout se met à jour en direct, que la modification vienne de Claude, d'un autre onglet ou d'une édition des fichiers à la main. Si Claude modifie une task pendant que tu l'édites, le formulaire te le signale au lieu d'écraser : tu choisis de garder tes valeurs ou de prendre la version actuelle. Le thème suit le mode clair ou sombre du système.
-
-| Touche | Action |
-|---|---|
-| `n` | nouvelle task |
-| `p` | changer de projet |
-| `l` / `k` / `h` | tasks en liste / en kanban / historique |
-| `/` | rechercher |
-| `s` / `a` / `m` | synthèse / activité / mémoire |
-| `g` | vue d'ensemble |
-| `?` | aide |
+![Claude activity: sessions, tool calls and statistics](docs/images/activity.png)
 
 ### Notifications
 
-Le dashboard envoie une notification de bureau quand une task approche de sa deadline (48 h avant par défaut), quand elle est en retard, et quand Claude bloque une task. Chaque notification n'est envoyée qu'une fois ; une deadline déplacée en déclenche une nouvelle. Si le dashboard était arrêté, il envoie au démarrage un seul récapitulatif par projet. Sous Linux, elles passent par le service de notifications du bureau (mako sur Omarchy) ; sous Windows, par le centre de notifications, au nom d'Altium une fois `altium service install` lancé.
+The dashboard sends a desktop notification when a task gets close to its deadline (48 hours before by default), when it is overdue, and when Claude blocks a task. Each one is sent once; if the dashboard was stopped, it sends a single recap per project when it starts. On Linux they go through the desktop notification service (mako on Omarchy); on Windows, through the notification center.
 
-### Lister les projets suivis
+## Commands
 
-```bash
-altium list
-```
+| Command | What it does |
+|---|---|
+| `altium setup` | Adds Altium's hooks to `~/.claude/settings.json` (backed up first) and registers the `altium` MCP server for your user. Safe to run again. `--uninstall` removes exactly what it added. |
+| `altium init [--name NAME]` | Tracks the current folder: creates `.altium/` and registers the project. Never overwrites an existing file; run again after moving a project to update its path. |
+| `altium survey` | Has Claude survey an existing project and propose tasks one by one. Later runs only read new conversations. |
+| `altium serve [--port PORT]` | Runs the dashboard in the foreground. |
+| `altium open` | Opens the current project (or the overview) in the browser, starting the dashboard if needed. |
+| `altium service install` / `uninstall` | Starts the dashboard with your session (systemd user unit on Linux, `Run` registry key on Windows), or stops doing so. |
+| `altium list` | Lists tracked projects and flags the ones whose folder is gone. |
+| `altium forget [PATH\|ID]` | Stops tracking a project; its `.altium/` folder is left untouched. |
+| `altium doctor [--renumber]` | Checks the setup; `--renumber` fixes duplicate task ids, for example after a git merge. |
+| `altium update [--check] [--force]` | Updates Altium, see below. |
 
-```
-NOM           CHEMIN                 STATUT
-mon-api       ~/projects/mon-api     présent
-Autre projet  ~/projects/autre       introuvable
+The hooks never contact the dashboard: they append one line to `.altium/runtime/events.jsonl` and return within milliseconds ([`docs/perf.md`](docs/perf.md)). Claude never deletes a task through MCP; it cancels it. The MCP tools are described in [`docs/mcp.md`](docs/mcp.md).
 
-Un projet introuvable peut être retiré avec `altium forget <chemin|id>`.
-```
-
-Un projet est **introuvable** quand son dossier n'existe plus ou ne contient plus son `.altium/`.
-
-### Arrêter de suivre un projet
-
-```bash
-altium forget ~/projects/autre
-```
-
-```
-Projet « Autre projet » retiré du suivi (~/projects/autre).
-Son dossier .altium/ n'a pas été modifié.
-```
-
-Tu peux passer un chemin ou un identifiant de projet. Sans argument, la commande retire le projet du dossier courant. Elle retire seulement le projet du registre : le dossier `.altium/` reste intact.
-
-### Diagnostiquer
+## Updating
 
 ```bash
-altium doctor
+altium update            # build and install the latest version
+altium update --check    # only say whether there is one
 ```
 
-`altium doctor` vérifie les hooks et le serveur MCP dans la config de Claude Code, que le binaire qu'ils appellent existe, que le dashboard répond, et l'état du projet courant. `altium doctor --renumber` renumérote les tasks dont l'identifiant est en double, par exemple après une fusion git.
+`altium update` fetches the `main` branch of the Altium repository into its own clone (`altium/source` in your local data folder: `~/.local/share` on Linux, `%LOCALAPPDATA%` on Windows), builds the front and the release binary there, and replaces the binary you ran. A running dashboard is restarted on the new version. It needs the same tools as the install (git, cargo and npm); a build takes a minute or two.
 
-### Configuration
+**Daily update.** The first `altium` command of the day, including the hooks Claude Code runs, starts the same update in the background, at low priority, and logs it to `update.log` next to the Altium log. It never runs for a binary inside a cargo `target/` folder. Turn it off with `auto_update = false` in `config.toml` or the `ALTIUM_NO_AUTO_UPDATE` environment variable.
 
-Réglages globaux, dans `config.toml` à côté du registre (`~/.config/altium/` ou `%APPDATA%\altium\`) :
+A binary built from a commit the repository does not have (a local development build) is left alone; `altium update --force` installs the latest version anyway. `altium --version` shows the commit a binary was built from.
+
+## Configuration
+
+Global settings live in `config.toml` next to the project registry: `~/.config/altium/` on Linux, `%APPDATA%\altium\` on Windows, or the folder in `ALTIUM_CONFIG_DIR`. Every key is optional.
 
 ```toml
-port = 7420                 # port du dashboard
-notifications = true        # notifications de bureau
-near_deadline_hours = 48    # « proche de la deadline » à partir de…
-idle_minutes = 30           # session considérée inactive après…
+port = 7420                  # dashboard port
+notifications = true         # desktop notifications
+near_deadline_hours = 48     # a task is "near its deadline" from this many hours before it
+idle_minutes = 30            # a session counts as inactive after this
+memory_lang = "fr"           # language Claude writes memory notes in (default: English)
+auto_update = true           # daily background update
+update_repo = "https://github.com/zomboky/altium.git"   # where `altium update` builds from
 ```
 
-Réglages d'un projet, dans la section `[config]` de son `.altium/project.toml` :
+Per-project settings go in the `[config]` section of `.altium/project.toml` and take precedence:
 
 ```toml
 [config]
-context_budget = 2000       # tokens du contexte injecté au démarrage d'une session
+context_budget = 2000        # tokens of context injected at session start
 near_deadline_hours = 24
 notifications = false
-phases = ["idée", "prototype", "prod"]
+phases = ["idea", "prototype", "production"]
 
 [config.memory]
-lang = "fr"                 # langue des nœuds de mémoire écrits par Claude (anglais par défaut)
+lang = "en"                  # this project's memory language, overriding memory_lang
 ```
 
-### Désinstaller
+## The `.altium/` folder
 
-```bash
-altium service uninstall
-altium setup --uninstall
-```
-
-Supprime ensuite le binaire. Les dossiers `.altium/` de tes projets et le registre restent en place.
-
-## Le dossier `.altium/`
-
-| Fichier | Contenu |
+| File | Content |
 |---|---|
-| `project.toml` | identité et réglages du projet |
-| `status.json` | résumé et phase |
-| `tasks.jsonl` | tasks, une par ligne |
-| `memory/` | nœuds de mémoire, un fichier Markdown chacun |
-| `runtime/` | données locales, non versionnées |
+| `project.toml` | Project identity and settings |
+| `status.json` | Summary and phase |
+| `tasks.jsonl` | Tasks, one JSON object per line |
+| `memory/` | Memory notes, one Markdown file with YAML front matter each |
+| `runtime/` | Local data (events, sessions, caches), not versioned |
 
-Tout est en texte lisible et fait pour être commité, sauf `runtime/`, que le `.gitignore` de `.altium/` exclut. Le format complet est décrit dans [`docs/format.md`](docs/format.md).
+Everything is readable text meant to be committed with the project, except `runtime/`, which `.altium/.gitignore` excludes. The format is specified in [`docs/format.md`](docs/format.md) (in French), with a JSON Schema for tasks in [`crates/altium-core/schema/`](crates/altium-core/schema/).
 
-## Altium sous Windows
+To uninstall: `altium service uninstall`, `altium setup --uninstall`, then delete the binary. Your projects' `.altium/` folders and the registry stay in place.
 
-Altium s'utilise de la même façon dans PowerShell et dans l'invite de commandes (`cmd`). Quelques détails diffèrent de Linux.
+## Windows notes
 
-**Chemins.** Les chemins s'affichent avec des `\`, et ton dossier personnel est abrégé en `~` : `~\projects\mon-api\.altium`. `altium forget` accepte ces chemins tels quels, même si `cmd` et Windows PowerShell ne remplacent pas `~` par ton dossier personnel. Comme ailleurs sous Windows, la casse ne compte pas : `altium forget c:\users\moi\projects\autre` retire aussi le projet de `C:\Users\moi\projects\autre`.
+- Paths are shown with `\` and your home folder as `~`; `altium forget` accepts them as shown, and ignores case like Windows does.
+- `altium service install` writes to your account's `Run` key, without admin rights, and names the notification sender "Altium". A console window flashes for a split second at logon, then the dashboard runs without one.
+- On Windows the daily update moves the running binary aside to `altium.old.exe` (a running `.exe` cannot be overwritten) and removes it at the next update.
+- Altium writes LF line endings; with `core.autocrlf=true` Git checks them out as CRLF and Altium reads both.
+- Accents piped from `altium` in PowerShell (`altium list > projects.txt`) need a UTF-8 console: `[Console]::OutputEncoding = [Text.UTF8Encoding]::new()`.
 
-**Registre.** La liste des projets suivis est dans `%APPDATA%\altium\projects.toml`. Pour la ranger ailleurs, sous Windows comme sous Linux, donne le dossier à utiliser dans la variable d'environnement `ALTIUM_CONFIG_DIR`.
+## Development
 
-**Démarrage automatique.** `altium service install` inscrit le dashboard dans la clé `Run` de ton compte, sans droits administrateur. À l'ouverture de session, une fenêtre de console apparaît une fraction de seconde puis se ferme : le dashboard continue sans console. La commande déclare aussi le nom « Altium » pour les notifications, qui sinon s'afficheraient au nom de « Windows PowerShell ». Sous Windows, les notifications n'ont pas de bouton « Ouvrir » : utilise `altium open`.
-
-**Fins de ligne.** Altium écrit les fichiers de `.altium/` avec des fins de ligne LF. Avec son réglage par défaut (`core.autocrlf=true`), Git for Windows les convertit en CRLF quand il les extrait. Altium lit les deux formats, et Git remet des LF à chaque commit : le diff reste propre.
-
-**Accents dans un pipe.** À l'écran, les accents s'affichent correctement. Dans un pipe ou une redirection (`altium list > projets.txt`), PowerShell décode la sortie d'`altium` avec l'encodage de la console, souvent `ibm850`, et abîme les accents. Passe la console en UTF-8 avant :
-
-```powershell
-[Console]::OutputEncoding = [Text.UTF8Encoding]::new()
-```
-
-Pour ne plus y penser, ajoute cette ligne à ton profil PowerShell (`notepad $PROFILE`).
-
-## Développement
-
-| Linux | Windows | Effet |
+| Linux | Windows | Effect |
 |---|---|---|
-| `make build` | `.\make.ps1 build` | compile le front puis le binaire de release |
-| `make test` | `.\make.ps1 test` | lance les tests Rust du workspace, la vérification de types et les tests Vitest du front |
-| `make e2e` | `.\make.ps1 e2e` | lance les tests de bout en bout Playwright contre le vrai binaire |
-| `make dev` | `.\make.ps1 dev` | lance le front avec rechargement à chaud |
-| `make clean` | `.\make.ps1 clean` | supprime `target/` et `web/dist/` |
+| `make build` | `.\make.ps1 build` | Builds the front, then the release binary |
+| `make test` | `.\make.ps1 test` | Rust tests, front type checks and Vitest tests |
+| `make e2e` | `.\make.ps1 e2e` | Playwright end-to-end tests against the real binary |
+| `make dev` | `.\make.ps1 dev` | Front with hot reload, API proxied to `altium serve` on port 7420 |
+| `make clean` | `.\make.ps1 clean` | Removes `target/` and `web/dist/` |
 
-En mode `dev`, les appels `/api` sont redirigés vers `altium serve` sur le port 7420.
+End-to-end tests use the installed Edge on Windows; on Linux, install Playwright's Chromium once with `npx --prefix web playwright install chromium`. Tests never touch your registry or your Claude Code config: they use throwaway ones through `ALTIUM_CONFIG_DIR` and `CLAUDE_CONFIG_DIR`.
 
-Les tests de bout en bout utilisent le Edge installé sous Windows. Sous Linux, installe une fois le Chromium de Playwright : `npx --prefix web playwright install chromium`. Pour voir le dashboard avec des données de démo, lance `node web/e2e/seed.ts`, puis `altium serve --port 7499` avec `ALTIUM_CONFIG_DIR` pointant sur `altium-e2e/config` dans le dossier temporaire du système.
+`node web/e2e/seed.ts` creates a demo project in a throwaway environment, and `node web/e2e/screenshots.ts` regenerates the screenshots of this README from it (after `cargo build`).
 
-Les tests ne touchent jamais à ton registre ni à ta config Claude Code : ils en utilisent des temporaires, désignés par `ALTIUM_CONFIG_DIR` et `CLAUDE_CONFIG_DIR`.
-
-| Dossier | Rôle |
+| Folder | Role |
 |---|---|
-| `crates/altium-core` | modèles, stockage `.altium/`, registre |
-| `crates/altium-cli` | binaire `altium` |
-| `crates/altium-server` | serveur web local et front embarqué |
-| `crates/altium-mcp` | serveur MCP pour Claude Code |
-| `web/` | front Svelte 5 + Vite + TypeScript |
-| `openspec/` | specs et plan de travail ([OpenSpec](https://github.com/Fission-AI/OpenSpec)) |
+| `crates/altium-core` | Models, `.altium/` storage, registry, session context |
+| `crates/altium-cli` | The `altium` binary |
+| `crates/altium-server` | Local web server with the embedded front |
+| `crates/altium-mcp` | MCP server for Claude Code |
+| `web/` | Svelte 5 + Vite + TypeScript front, Svelte Flow for the memory graph |
+| `prototypes/memory-graph` | Standalone Svelte Flow prototype of the memory graph |
+| `openspec/` | Specs and work plan ([OpenSpec](https://github.com/Fission-AI/OpenSpec)) |

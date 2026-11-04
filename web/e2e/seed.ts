@@ -115,6 +115,69 @@ export function seed() {
     },
     { name: 'task_create', arguments: { title: 'Rapport de performance', deliverable: 'livrables/rapport.pdf' } },
     { name: 'task_update', arguments: { id: 'T-6', status: 'done' } },
+    { name: 'task_create', arguments: { title: 'Mesurer la latence p95', tags: ['perf'], deliverable: 'figures/latence.svg' } },
+    { name: 'task_update', arguments: { id: 'T-7', status: 'done' } },
+    { name: 'task_create', arguments: { title: 'Simuler la charge du serveur', tags: ['perf'], deliverable: 'figures/simulation.html' } },
+    { name: 'task_update', arguments: { id: 'T-8', status: 'done' } },
+    { name: 'task_create', arguments: { title: 'Choisir la base de données', priority: 'P1', status: 'blocked', blocked_reason: 'Attente du budget hébergement' } },
+    {
+      name: 'memory_put',
+      arguments: {
+        id: 'objectif',
+        kind: 'fact',
+        title: 'Objectif : un dashboard local en temps réel',
+        desc: 'Suivre tasks, mémoire et sessions Claude sans quitter la machine',
+        body: 'Tout reste en local : fichiers .altium/ et serveur sur 127.0.0.1.',
+      },
+    },
+    {
+      name: 'memory_put',
+      arguments: {
+        id: 'serveur-axum',
+        kind: 'component',
+        title: 'Serveur axum et flux SSE',
+        desc: 'API REST + événements temps réel sur /api/stream',
+        body: 'Le serveur surveille les fichiers et pousse chaque changement.',
+        tags: ['api'],
+        links: [{ to: 'objectif', type: 'part_of' }],
+      },
+    },
+    {
+      name: 'memory_put',
+      arguments: {
+        id: 'erreurs-json',
+        kind: 'convention',
+        title: 'Erreurs de l’API en JSON',
+        desc: 'Toujours { error, code } avec le bon statut HTTP',
+        body: '409 pour un conflit d’édition, 422 pour une valeur invalide.',
+        tags: ['api'],
+        links: [{ to: 'serveur-axum', type: 'part_of' }],
+      },
+    },
+    {
+      name: 'memory_put',
+      arguments: {
+        id: 'proxy-sse',
+        kind: 'gotcha',
+        title: 'Le proxy de dev coupe le flux SSE',
+        desc: 'Désactiver la compression du proxy Vite pour /api/stream',
+        body: 'Sans ça, les événements arrivent par paquets.',
+        links: [{ to: 'serveur-axum', type: 'depends_on' }],
+      },
+    },
+    {
+      name: 'memory_put',
+      arguments: {
+        id: 'publier-version',
+        kind: 'howto',
+        title: 'Publier une version',
+        desc: 'make build, puis copier le binaire dans ~/.local/bin',
+        body: 'Lancer les tests, construire, installer.',
+        links: [{ to: 'objectif', type: 'relates_to' }],
+      },
+    },
+    { name: 'memory_link', arguments: { from: 'auth-jwt', to: 'serveur-axum', type: 'part_of' } },
+    { name: 'memory_link', arguments: { from: 'mesure-latence', to: 'serveur-axum', type: 'relates_to' } },
   ])
   for (const [path, content] of Object.entries(FILES)) {
     mkdirSync(join(PROJECT, path, '..'), { recursive: true })
