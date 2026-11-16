@@ -83,6 +83,24 @@ test('kanban: dragging to « En cours » and to « Bloqué », which asks why', 
   expect(await status(request, id, task)).toBe('blocked')
 })
 
+test('list: one click marks a task done, the toast undoes it', async ({ page, request }) => {
+  const id = await projectId(request)
+  const task = await createTask(request, id, 'À cocher')
+  await page.goto(`/projects/${id}/tasks`)
+  const row = page.locator(`[data-testid=task-row][data-id="${task}"]`)
+
+  await row.getByRole('button', { name: `Marquer ${task} comme faite` }).click()
+  await expect(row).toBeHidden()
+  expect(await status(request, id, task)).toBe('done')
+  const undo = page.getByTestId('undo')
+  await expect(undo).toContainText('Voulez-vous annuler la suppression de cette tâche ?')
+
+  await undo.getByRole('button', { name: 'Annuler' }).click()
+  await expect(row).toBeVisible()
+  await expect(undo).toBeHidden()
+  expect(await status(request, id, task)).toBe('todo')
+})
+
 test('memory: following a depends_on link opens the target node', async ({ page, request }) => {
   const id = await projectId(request)
   mcp([

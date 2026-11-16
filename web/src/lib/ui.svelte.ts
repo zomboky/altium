@@ -39,7 +39,35 @@ class Ui {
     if (this.noticeTimer) clearTimeout(this.noticeTimer)
     this.noticeTimer = setTimeout(() => (this.notice = null), error ? 8000 : 3000)
   }
+
+  /** A change that can still be taken back, offered at the bottom of the screen. */
+  undo = $state<{ id: number; text: string; run: () => void } | null>(null)
+  private undoTimer: ReturnType<typeof setTimeout> | null = null
+  private undoCount = 0
+
+  /** Offers to undo a change for `UNDO_DELAY` ms; a newer offer replaces it. */
+  offerUndo(text: string, run: () => void) {
+    if (this.undoTimer) clearTimeout(this.undoTimer)
+    this.undo = { id: ++this.undoCount, text, run }
+    this.undoTimer = setTimeout(() => (this.undo = null), UNDO_DELAY)
+  }
+
+  /** Runs the offered undo, once. */
+  takeUndo() {
+    const offer = this.undo
+    this.dismissUndo()
+    offer?.run()
+  }
+
+  dismissUndo() {
+    if (this.undoTimer) clearTimeout(this.undoTimer)
+    this.undoTimer = null
+    this.undo = null
+  }
 }
+
+/** How long a change can be undone, in milliseconds. */
+export const UNDO_DELAY = 5000
 
 export const ui = new Ui()
 

@@ -5,7 +5,7 @@
   import FileLink from '../components/FileLink.svelte'
   import TaskForm from '../components/TaskForm.svelte'
   import { PRIORITIES, STATUSES, type Task, type TaskList, services } from '../lib/api'
-  import { attempt, setPriority, setStatus } from '../lib/actions'
+  import { attempt, markDone, setPriority, setStatus } from '../lib/actions'
   import { DEADLINE_LABELS, PRIORITY_LABELS, STATUS_LABELS } from '../lib/format'
   import { t } from '../lib/i18n.svelte'
   import { Resource } from '../lib/resource.svelte'
@@ -117,6 +117,23 @@
     <ul class="tasks">
       {#each tree(group) as { task, depth } (task.id)}
         <li class="task {task.status}" style="--depth: {depth}" data-testid="task-row" data-id={task.id}>
+          {#if task.status === 'done'}
+            <button
+              class="check checked"
+              onclick={() => change(() => setStatus(api, project, task, 'todo'))}
+              title={t('Done: click to reopen', 'Faite : cliquer pour la rouvrir')}
+              aria-label={t(`Reopen ${task.id}`, `Rouvrir ${task.id}`)}>✓</button
+            >
+          {:else if task.status === 'cancelled'}
+            <span class="check placeholder"></span>
+          {:else}
+            <button
+              class="check"
+              onclick={() => markDone(api, project, task, () => list.refresh())}
+              title={t('Mark as done', 'Marquer comme faite')}
+              aria-label={t(`Mark ${task.id} as done`, `Marquer ${task.id} comme faite`)}>✓</button
+            >
+          {/if}
           <span class="id mono muted">{task.id}</span>
           <select
             class="chip {task.priority}"
@@ -249,6 +266,44 @@
 
   .id {
     min-width: 3rem;
+  }
+
+  .check {
+    flex: none;
+    width: 1.35rem;
+    height: 1.35rem;
+    padding: 0;
+    border: 2px solid var(--border);
+    border-radius: 50%;
+    background: var(--surface);
+    color: transparent;
+    font-size: 0.8rem;
+    font-weight: 700;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+
+  .check:hover,
+  .check:focus-visible {
+    border-color: var(--ok);
+    color: var(--ok);
+  }
+
+  .check.checked {
+    background: var(--ok);
+    border-color: var(--ok);
+    color: #fff;
+  }
+
+  .check.checked:hover {
+    opacity: 0.75;
+  }
+
+  .check.placeholder {
+    visibility: hidden;
   }
 
   select.chip {

@@ -35,6 +35,31 @@ export async function setStatus(api: Api, project: string, task: Task, status: T
   return send(api, project, task.id, patch)
 }
 
+/**
+ * Marks `task` done in one click, then offers for a few seconds to put it
+ * back as it was. `refresh` reloads the view after each change.
+ */
+export async function markDone(api: Api, project: string, task: Task, refresh: () => void): Promise<void> {
+  let changed = false
+  await attempt(async () => {
+    changed = await send(api, project, task.id, { status: { base: task.status, value: 'done' } })
+  })
+  refresh()
+  if (!changed) return
+  ui.offerUndo(
+    t(`${task.id} done. Undo?`, 'Voulez-vous annuler la suppression de cette tâche ?'),
+    async () => {
+      const patch: TaskPatch = { status: { base: 'done', value: task.status } }
+      // Closing a blocked task drops its reason: give it back.
+      if (task.status === 'blocked' && task.blocked_reason) {
+        patch.blocked_reason = { base: null, value: task.blocked_reason }
+      }
+      await attempt(() => api.updateTask(project, task.id, patch))
+      refresh()
+    },
+  )
+}
+
 export function setPriority(api: Api, project: string, task: Task, priority: Priority): Promise<boolean> {
   return send(api, project, task.id, { priority: { base: task.priority, value: priority } })
 }

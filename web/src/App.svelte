@@ -5,7 +5,7 @@
   import { LANGS, type Lang, i18n, setLang, t } from './lib/i18n.svelte'
   import { Resource } from './lib/resource.svelte'
   import { TABS, href, link, router } from './lib/router.svelte'
-  import { SHORTCUTS, typing, ui } from './lib/ui.svelte'
+  import { SHORTCUTS, UNDO_DELAY, typing, ui } from './lib/ui.svelte'
   import Activity from './views/Activity.svelte'
   import Dashboard from './views/Dashboard.svelte'
   import History from './views/History.svelte'
@@ -170,7 +170,17 @@
 {/if}
 
 {#if ui.notice}
-  <div class="notice" class:error={ui.notice.error} role="status">{ui.notice.text}</div>
+  <div class="notice" class:error={ui.notice.error} class:raised={ui.undo} role="status">{ui.notice.text}</div>
+{/if}
+{#if ui.undo}
+  {#key ui.undo.id}
+    <div class="undo" role="status" data-testid="undo">
+      <span>{ui.undo.text}</span>
+      <button class="undo-button" onclick={() => ui.takeUndo()}>{t('Undo', 'Annuler')}</button>
+      <button class="undo-close" onclick={() => ui.dismissUndo()} aria-label={t('Close', 'Fermer')}>×</button>
+      <span class="undo-timer" style="animation-duration: {UNDO_DELAY}ms"></span>
+    </div>
+  {/key}
 {/if}
 
 <dialog bind:this={helpDialog} onclose={() => (ui.help = false)}>
@@ -275,6 +285,65 @@
   .notice.error {
     background: var(--danger);
     color: #fff;
+  }
+
+  .notice.raised {
+    bottom: 4.5rem;
+  }
+
+  .undo {
+    position: fixed;
+    bottom: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    background: var(--text);
+    color: var(--bg);
+    padding: 0.5rem 0.5rem 0.5rem 1rem;
+    border-radius: 6px;
+    box-shadow: var(--shadow);
+    max-width: calc(100vw - 2rem);
+    overflow: hidden;
+  }
+
+  .undo-button {
+    background: transparent;
+    border: 1px solid currentColor;
+    color: inherit;
+    font-weight: 600;
+    padding: 0.2rem 0.7rem;
+    white-space: nowrap;
+  }
+
+  .undo-close {
+    background: transparent;
+    border: none;
+    color: inherit;
+    opacity: 0.7;
+    padding: 0 0.3rem;
+    font-size: 1.1rem;
+  }
+
+  .undo-timer {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    height: 3px;
+    width: 100%;
+    background: var(--ok);
+    transform-origin: left;
+    animation: undo-countdown linear forwards;
+  }
+
+  @keyframes undo-countdown {
+    from {
+      transform: scaleX(1);
+    }
+    to {
+      transform: scaleX(0);
+    }
   }
 
   dl {
